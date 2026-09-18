@@ -1,0 +1,205 @@
+# Recruitment and Hiring Policy
+
+**Document ID:** POL-REC-016  
+**Effective Date:** January 1, 2025  
+**Last Reviewed:** September 1, 2025  
+**Owner:** People Operations / Talent Acquisition  
+**Version:** 3.1
+
+---
+
+## 1. Purpose and Scope
+
+This policy defines the standards and processes for recruiting, selecting, and extending offers to candidates for employment at Acme Corp. It ensures hiring is consistent, fair, legally compliant, and aligned with business needs.
+
+This policy applies to all hiring managers, recruiters, and interviewers involved in any full-time, part-time, or contract-to-hire hiring process.
+
+> **Scope boundaries:**
+> - **Onboarding** of the hired candidate is governed by POL-ONB-006
+> - **Compensation offer ranges** are governed by POL-CMP-012
+> - **Diverse slate and structured interview requirements** are defined here; broader DEI philosophy is in POL-DEI-014
+
+---
+
+## 2. Headcount Approval
+
+### 2.1 Requisition Process
+
+All new hires and backfills require an approved headcount requisition before recruiting begins. Requisitions are submitted in Workday and require:
+- **Director-level approval** for individual contributor roles (L1–L6)
+- **VP-level approval** for manager and senior IC roles (L7–L8)
+- **CHRO and CFO approval** for Director and above (L9–L10)
+
+Recruiting does not begin until a requisition is approved in Workday. Informal outreach or pipeline building before requisition approval is permitted but must be disclosed to Talent Acquisition.
+
+### 2.2 Backfills
+
+Roles vacated by resignation or termination require a new requisition to confirm the role is still needed before backfilling. Automatic backfills are not assumed.
+
+---
+
+## 3. Job Posting Standards
+
+### 3.1 Internal Posting Requirement
+
+All open roles at L1–L8 must be posted on the **internal jobs board** in Workday for a minimum of **5 business days** before external posting, giving current employees first opportunity to apply. Exceptions (confidential searches, executive roles) require VP and HR approval.
+
+### 3.2 External Job Postings
+
+External postings must:
+- Accurately describe the role, level, and team
+- Include a salary range in jurisdictions where required by law (California, Colorado, New York, Washington), and company-wide as a transparency practice per POL-CMP-012 §7.1
+- Use inclusive, gender-neutral language reviewed per POL-DEI-014 §4.1
+- Clearly distinguish required qualifications from preferred ones
+- Not include requirements that could constitute illegal discrimination (e.g., graduation year as a proxy for age)
+
+### 3.3 Posting Channels
+
+Talent Acquisition manages the distribution of postings to approved job boards (LinkedIn, Greenhouse, Glassdoor, role-specific boards). Hiring managers may not post to job boards independently.
+
+---
+
+## 4. Candidate Sourcing
+
+### 4.1 Sourcing Methods
+
+Approved sourcing methods include:
+- Applicants via job postings
+- Employee referrals (see Section 7)
+- Recruiter-led outbound sourcing (LinkedIn Recruiter, GitHub, professional networks)
+- Recruiting agencies (must be on the approved vendor list; see POL-VND-019 §3)
+- University and bootcamp partnerships (coordinated by Talent Acquisition)
+
+### 4.2 Candidate Data Privacy
+
+All candidate data collected during recruiting must comply with the Candidate Privacy Notice provided by Talent Acquisition, which governs what data is collected, how it is stored in Greenhouse (ATS), and candidate rights under GDPR and CCPA. Candidate data must not be stored outside of Greenhouse without IT and Legal approval.
+
+---
+
+## 5. Interview Process
+
+### 5.1 Standard Interview Stages
+
+The standard hiring process consists of:
+
+| Stage | Format | Owner |
+|---|---|---|
+| Recruiter Screen | 20–30 min phone or video | Recruiter |
+| Hiring Manager Screen | 30–45 min video | Hiring Manager |
+| Technical / Skills Assessment | Take-home or live (role-dependent) | Hiring Manager + Interviewer |
+| Final Interview Loop | 3–5 interviews, 45 min each | Interview Panel |
+| Reference Checks | 2–3 references (see Section 5.4) | Recruiter |
+
+Departures from the standard stages require Talent Acquisition approval.
+
+### 5.2 Structured Interviews
+
+All final-round interviews must use structured formats per the DEI policy requirement (POL-DEI-014 §4.3):
+- All candidates for a given role are asked the same core questions in the same order
+- Questions are evaluated against pre-defined rubrics in Greenhouse
+- Interviewers submit scores and written feedback in Greenhouse within **24 hours** of the interview
+
+Interview question sets are developed by the recruiter and hiring manager and reviewed by Talent Acquisition for legality and structure before use.
+
+### 5.3 Prohibited Interview Topics
+
+Interviewers may never ask about:
+- Age, date of birth, or graduation year
+- Marital status, pregnancy, or family planning
+- National origin, citizenship, or accent (beyond confirming legal eligibility to work)
+- Disability or medical history
+- Religion or religious practices
+- Prior salary history (prohibited in many jurisdictions; ask only about compensation expectations)
+- Arrest records not resulting in conviction
+
+Any interviewer who asks a prohibited question must report it to the recruiter immediately. Interviewers who repeatedly violate this requirement will be removed from interview panels.
+
+### 5.4 Reference Checks
+
+At least **2 professional references** are required before an offer is extended, at minimum one of whom must be a direct former manager. References are conducted by the recruiter using a standardized reference script.
+
+Acme Corp employees may serve as references for former colleagues, but may not offer personal opinions about compensation, performance ratings, or reasons for separation beyond what the former employee has authorized them to share.
+
+### 5.5 Background Checks
+
+All final candidates who receive a conditional offer must complete a background check through Acme Corp's approved background check provider (currently Checkr) before their start date. Background checks include:
+- Criminal history (where permitted by applicable law and EEOC guidance)
+- Identity verification
+- Employment history verification (last 7 years)
+- Education verification (highest degree claimed)
+- Credit check (for roles with financial signing authority only, with candidate consent)
+
+Adverse action based on background check results must follow the FCRA adverse action notice process. Legal must be consulted before rescinding an offer based on criminal history.
+
+---
+
+## 6. Offer and Hire
+
+### 6.1 Offer Approval
+
+Before an offer is extended:
+- Hiring manager and recruiter agree on offer terms
+- Compensation is validated against the approved pay band (POL-CMP-012 §3.2) and confirmed with Total Rewards
+- VP approval is required for any offer above the midpoint of the pay band
+- Offer letter is generated in Greenhouse and reviewed by People Operations
+
+### 6.2 Offer Letter
+
+All offers are made in writing via a standard Acme Corp offer letter generated in Greenhouse. Verbal offers may be made to communicate the intent, but must be followed by a written offer within **1 business day**. The written offer governs; verbal representations that differ from the offer letter are not binding.
+
+Offer letters include:
+- Start date, title, level, manager, and office location (or remote designation)
+- Base salary, target bonus percentage, and equity grant amount
+- Benefit eligibility start date
+- At-will employment statement
+- Reference to applicable employment agreements (NDA, IP assignment, non-solicitation)
+
+### 6.3 Offer Expiration
+
+Offers are open for acceptance for **5 business days** unless an extension is approved by the hiring manager. Candidates who do not respond within this window may have their offer rescinded.
+
+### 6.4 Rescinding Offers
+
+Offers may be rescinded only for: failed background check, failure to establish legal work authorization, material misrepresentation discovered before start date, or business-critical headcount freeze. All offer rescissions require VP and Legal sign-off.
+
+---
+
+## 7. Employee Referral Program
+
+### 7.1 Referral Bonus
+
+Employees who refer a candidate who is successfully hired and completes **90 days of employment** receive a referral bonus:
+
+| Referred Candidate Level | Referral Bonus |
+|---|---|
+| L1 – L4 | $1,500 |
+| L5 – L6 | $3,000 |
+| L7 – L8 | $5,000 |
+| L9 and above | $7,500 |
+
+Bonuses are paid in the payroll cycle following the 90-day mark and are subject to applicable tax withholding.
+
+### 7.2 Referral Eligibility
+
+- Any current employee in good standing may refer candidates (no restrictions by department).
+- Employees on active Performance Improvement Plans (POL-PFM-010 §7.5) are not eligible for referral bonuses.
+- Managers may not refer candidates for roles they directly control or influence the hiring decision for.
+- Referring employees must disclose the personal relationship to the recruiter when submitting the referral.
+
+### 7.3 Submitting a Referral
+
+Referrals are submitted through the **Greenhouse Employee Referral Portal** (accessible via Okta). Referrals submitted after a candidate has already applied independently do not qualify.
+
+---
+
+## 8. Hiring Records and Compliance
+
+All hiring documentation (interview scorecards, reference check notes, offer letters, background check results) must be retained in Greenhouse for a minimum of **3 years** per EEOC recordkeeping requirements. Do not store hiring records in email, personal drives, or external tools.
+
+---
+
+## 9. Contact and Questions
+
+- **Talent Acquisition team:** talent@acmecorp.com
+- **People Operations (offer approvals, compliance):** people-ops@acmecorp.com
+- **Legal (background check adverse action, prohibited questions):** legal@acmecorp.com

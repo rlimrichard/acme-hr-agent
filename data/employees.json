@@ -1,0 +1,144 @@
+{
+  "employees": [
+    {
+      "employee_id": "EMP-001",
+      "name": "Sarah Chen",
+      "role": "Senior Software Engineer",
+      "department": "Engineering",
+      "office_location": "San Francisco, CA",
+      "remote_status": "Fully Remote",
+      "hire_date": "2021-03-15",
+      "manager_id": "EMP-004",
+      "pto_balance_days": 14.5,
+      "benefits_election": {
+        "health_plan": "PPO Premium",
+        "dental": true,
+        "vision": true,
+        "401k_contribution_pct": 6,
+        "401k_employer_match_pct": 4,
+        "fsa_enrolled": false,
+        "hsa_enrolled": true,
+        "life_insurance": "2x salary",
+        "commuter_benefit": false
+      },
+      "annual_salary_usd": 165000,
+      "years_of_service": 4.5,
+      "pending_pto_requests": []
+    },
+    {
+      "employee_id": "EMP-002",
+      "name": "Marcus Johnson",
+      "role": "HR Business Partner",
+      "department": "People Operations",
+      "office_location": "Austin, TX",
+      "remote_status": "Hybrid",
+      "hire_date": "2019-07-01",
+      "manager_id": "EMP-005",
+      "pto_balance_days": 8.0,
+      "benefits_election": {
+        "health_plan": "HMO Standard",
+        "dental": true,
+        "vision": false,
+        "401k_contribution_pct": 8,
+        "401k_employer_match_pct": 4,
+        "fsa_enrolled": true,
+        "hsa_enrolled": false,
+        "life_insurance": "1x salary",
+        "commuter_benefit": true
+      },
+      "annual_salary_usd": 98000,
+      "years_of_service": 6.2,
+      "pending_pto_requests": [
+        {
+          "request_id": "PTO-REQ-0041",
+          "start_date": "2025-10-06",
+          "end_date": "2025-10-10",
+          "days_requested": 5,
+          "status": "pending_approval",
+          "reason": "Family vacation"
+        }
+      ]
+    },
+    {
+      "employee_id": "EMP-003",
+      "name": "Priya Nair",
+      "role": "Product Manager",
+      "department": "Product",
+      "office_location": "New York, NY",
+      "remote_status": "Office-First with Flex Days",
+      "hire_date": "2023-01-09",
+      "manager_id": "EMP-004",
+      "pto_balance_days": 4.0,
+      "benefits_election": {
+        "health_plan": "PPO Standard",
+        "dental": true,
+        "vision": true,
+        "401k_contribution_pct": 4,
+        "401k_employer_match_pct": 4,
+        "fsa_enrolled": false,
+        "hsa_enrolled": false,
+        "life_insurance": "1x salary",
+        "commuter_benefit": true
+      },
+      "annual_salary_usd": 135000,
+      "years_of_service": 1.7,
+      "pending_pto_requests": []
+    },
+    {
+      "employee_id": "EMP-004",
+      "name": "David Okafor",
+      "role": "Engineering Manager",
+      "department": "Engineering",
+      "office_location": "Chicago, IL",
+      "remote_status": "Hybrid",
+      "hire_date": "2017-11-20",
+      "manager_id": "EMP-005",
+      "pto_balance_days": 22.0,
+      "benefits_election": {
+        "health_plan": "PPO Premium",
+        "dental": true,
+        "vision": true,
+        "401k_contribution_pct": 10,
+        "401k_employer_match_pct": 4,
+        "fsa_enrolled": false,
+        "hsa_enrolled": true,
+        "life_insurance": "3x salary",
+        "commuter_benefit": true
+      },
+      "annual_salary_usd": 210000,
+      "years_of_service": 7.8,
+      "pending_pto_requests": []
+    },
+    {
+      "employee_id": "EMP-005",
+      "name": "Linda Rosenberg",
+      "role": "VP of People & Operations",
+      "department": "People Operations",
+      "office_location": "San Francisco, CA",
+      "remote_status": "Office-First with Flex Days",
+      "hire_date": "2015-06-01",
+      "manager_id": null,
+      "pto_balance_days": 18.5,
+      "benefits_election": {
+        "health_plan": "PPO Premium",
+        "dental": true,
+        "vision": true,
+        "401k_contribution_pct": 12,
+        "401k_employer_match_pct": 4,
+        "fsa_enrolled": false,
+        "hsa_enrolled": true,
+        "life_insurance": "4x salary",
+        "commuter_benefit": false
+      },
+      "annual_salary_usd": 285000,
+      "years_of_service": 10.3,
+      "pending_pto_requests": []
+    }
+  ],
+  "metadata": {
+    "generated_date": "2025-09-17",
+    "total_employees": 5,
+    "company": "Acme Corp",
+    "data_classification": "Confidential — HR Internal Use Only"
+  }
+}
