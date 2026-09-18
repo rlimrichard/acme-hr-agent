@@ -1,0 +1,78 @@
+{
+  "endpoints": {
+    "POST /chat": {
+      "request": {
+        "type": "object",
+        "properties": {
+          "query":       { "type": "string",  "description": "The user's natural language question or request" },
+          "employee_id": { "type": "string",  "description": "The authenticated employee's ID, e.g. 'EMP-002'" }
+        },
+        "required": ["query", "employee_id"]
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "type": "string",
+            "description": "Final synthesized answer with inline citations"
+          },
+          "citations": {
+            "type": "array",
+            "description": "Policy sources used to generate the answer",
+            "items": {
+              "type": "object",
+              "properties": {
+                "doc_id":    { "type": "string" },
+                "doc_title": { "type": "string" },
+                "section":   { "type": "string" }
+              }
+            }
+          },
+          "snippets": {
+            "type": "array",
+            "description": "Raw retrieved text chunks shown to the user",
+            "items": {
+              "type": "object",
+              "properties": {
+                "doc_id":  { "type": "string" },
+                "section": { "type": "string" },
+                "text":    { "type": "string" }
+              }
+            }
+          },
+          "tool_trace": {
+            "type": "array",
+            "description": "Ordered log of every MCP tool call made to answer this query",
+            "items": {
+              "type": "object",
+              "properties": {
+                "step":   { "type": "integer" },
+                "tool":   { "type": "string" },
+                "args":   { "type": "object" },
+                "result": { "type": "object" }
+              }
+            }
+          },
+          "escalated": {
+            "type": "boolean",
+            "description": "True if the agent determined the question is out of scope or requires human HR"
+          }
+        },
+        "required": ["answer", "citations", "snippets", "tool_trace"]
+      }
+    },
+    "GET /health": {
+      "response": {
+        "type": "object",
+        "properties": {
+          "status":        { "type": "string", "enum": ["ok", "degraded"] },
+          "mcp_connected": { "type": "boolean" },
+          "chroma_loaded": { "type": "boolean" },
+          "doc_count":     { "type": "integer" },
+          "version":       { "type": "string" }
+        },
+        "required": ["status", "mcp_connected", "chroma_loaded"]
+      }
+    }
+  }
+}

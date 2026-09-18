@@ -1,0 +1,190 @@
+{
+  "tools": [
+    {
+      "name": "search_policy_documents",
+      "description": "Semantic search across all HR policy documents. Returns ranked chunks with source citations.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query":  { "type": "string",  "description": "Natural language search query" },
+          "top_k":  { "type": "integer", "default": 5, "description": "Number of chunks to return" },
+          "doc_id": { "type": "string",  "description": "Optional: restrict search to one document (e.g. 'POL-PTO-002')" }
+        },
+        "required": ["query"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "chunks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "doc_id":    { "type": "string" },
+                "doc_title": { "type": "string" },
+                "section":   { "type": "string" },
+                "text":      { "type": "string" },
+                "snippet":   { "type": "string" },
+                "score":     { "type": "number" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "get_policy_section",
+      "description": "Retrieve the full text of a specific section from a specific policy document.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "doc_id":  { "type": "string", "description": "Policy document ID, e.g. 'POL-PTO-002'" },
+          "section": { "type": "string", "description": "Section name or breadcrumb, e.g. 'PTO Accrual Rates'" }
+        },
+        "required": ["doc_id", "section"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "doc_id":    { "type": "string" },
+          "doc_title": { "type": "string" },
+          "section":   { "type": "string" },
+          "text":      { "type": "string" },
+          "found":     { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "lookup_employee_profile",
+      "description": "Return the full profile for an employee by ID.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "employee_id": { "type": "string", "description": "e.g. 'EMP-001'" }
+        },
+        "required": ["employee_id"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "employee_id":      { "type": "string" },
+          "name":             { "type": "string" },
+          "role":             { "type": "string" },
+          "department":       { "type": "string" },
+          "office_location":  { "type": "string" },
+          "remote_status":    { "type": "string", "enum": ["remote", "hybrid", "office-first"] },
+          "hire_date":        { "type": "string", "format": "date" },
+          "manager_id":       { "type": "string" },
+          "years_of_service": { "type": "number" },
+          "found":            { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "check_pto_balance",
+      "description": "Return an employee's current PTO balance and any pending PTO requests.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "employee_id": { "type": "string" }
+        },
+        "required": ["employee_id"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "employee_id":          { "type": "string" },
+          "pto_balance_days":     { "type": "number" },
+          "pending_pto_requests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "start_date": { "type": "string", "format": "date" },
+                "end_date":   { "type": "string", "format": "date" },
+                "days":       { "type": "number" },
+                "status":     { "type": "string", "enum": ["pending", "approved", "denied"] }
+              }
+            }
+          },
+          "found": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "lookup_benefits_status",
+      "description": "Return an employee's current benefits elections.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "employee_id": { "type": "string" }
+        },
+        "required": ["employee_id"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "employee_id": { "type": "string" },
+          "benefits_election": {
+            "type": "object",
+            "properties": {
+              "health_plan":  { "type": "string" },
+              "dental":       { "type": "boolean" },
+              "vision":       { "type": "boolean" },
+              "fsa_enrolled": { "type": "boolean" },
+              "401k_percent": { "type": "number" }
+            }
+          },
+          "found": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "create_mock_hr_ticket",
+      "description": "Create a mock HR service ticket. Requires explicit user confirmation before calling.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "employee_id":          { "type": "string" },
+          "ticket_type":          { "type": "string", "enum": ["pto_request", "benefits_change", "policy_question", "accommodation_request", "general_inquiry"] },
+          "subject":              { "type": "string" },
+          "description":          { "type": "string" },
+          "requested_start_date": { "type": "string", "format": "date" },
+          "requested_end_date":   { "type": "string", "format": "date" }
+        },
+        "required": ["employee_id", "ticket_type", "subject", "description"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ticket_id":   { "type": "string" },
+          "status":      { "type": "string", "enum": ["created"] },
+          "created_at":  { "type": "string", "format": "date-time" },
+          "assigned_to": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "check_policy_compliance",
+      "description": "Given an employee ID and a proposed action, retrieve relevant policy and return a compliance verdict with citations.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "employee_id": { "type": "string" },
+          "action":      { "type": "string", "description": "The action to evaluate, e.g. 'expense a $300 home office chair'" },
+          "context":     { "type": "string", "description": "Additional context, e.g. 'employee is fully remote'" }
+        },
+        "required": ["employee_id", "action"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "compliant":  { "type": "boolean" },
+          "verdict":    { "type": "string" },
+          "citations":  { "type": "array", "items": { "type": "string" } },
+          "conditions": { "type": "string", "description": "Any conditions or limits that apply" }
+        }
+      }
+    }
+  ]
+}
