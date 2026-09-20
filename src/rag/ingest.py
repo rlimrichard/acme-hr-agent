@@ -19,8 +19,8 @@ from sentence_transformers import SentenceTransformer
 # Configuration
 # ---------------------------------------------------------------------------
 
-POLICIES_DIR = Path(__file__).parent.parent / "data" / "policies"
-CHROMA_DIR   = Path(__file__).parent.parent / "chroma_db"
+POLICIES_DIR = Path(__file__).parent.parent.parent / "data" / "policies"
+CHROMA_DIR   = Path(__file__).parent.parent.parent / "chroma_db"
 COLLECTION_NAME = "hr_policies"
 
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"

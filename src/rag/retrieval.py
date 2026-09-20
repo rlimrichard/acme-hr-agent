@@ -21,7 +21,7 @@ from sentence_transformers import SentenceTransformer
 # Configuration – must match ingest.py
 # ---------------------------------------------------------------------------
 
-CHROMA_DIR      = Path(__file__).parent.parent / "chroma_db"
+CHROMA_DIR      = Path(__file__).parent.parent.parent / "chroma_db"
 COLLECTION_NAME = "hr_policies"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 DEFAULT_TOP_K   = 5
