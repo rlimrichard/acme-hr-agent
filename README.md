@@ -263,6 +263,6 @@ All documents are synthetic and do not contain real personal information.
 
 Built by a team of 3 engineers for the Quantic MSAIE program.
 
-- **Engineer 1 — Knowledge Layer:** RAG pipeline, policy corpus, ChromaDB, MCP tools
-- **Engineer 2 — Reasoning Layer:** Agent orchestrator, MCP server, web application
-- **Engineer 3 — Quality Layer:** Deployment, CI/CD, evaluation, documentation
+- **Richard — Knowledge Layer:** RAG pipeline, policy corpus, ChromaDB, MCP tools
+- **Moe — Reasoning Layer:** Agent orchestrator, MCP server, web application
+- **Diva — Quality Layer:** Deployment, CI/CD, evaluation, documentation

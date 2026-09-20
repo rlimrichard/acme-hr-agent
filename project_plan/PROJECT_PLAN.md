@@ -18,7 +18,7 @@ Once committed, all three tracks are fully independent.
 
 ---
 
-## Engineer 1 — Knowledge Layer
+## Engineer 1 — Richard — Knowledge Layer
 ### RAG Pipeline · Policy Corpus · Mock Data
 
 ---
@@ -72,7 +72,7 @@ Once committed, all three tracks are fully independent.
 
 ---
 
-## Engineer 2 — Reasoning Layer
+## Engineer 2 — Moe — Reasoning Layer
 ### Agent Orchestrator · MCP Server · Web Application
 
 ---
@@ -145,7 +145,7 @@ Once committed, all three tracks are fully independent.
 
 ---
 
-## Engineer 3 — Quality Layer
+## Engineer 3 — Diva — Quality Layer
 ### Deployment · CI/CD · Evaluation · Documentation
 
 ---
@@ -216,14 +216,14 @@ Once committed, all three tracks are fully independent.
 ```
 Day 0     All:  30-min sync → commit tool schemas + API contract + data schema
           ─────────────────────────────────────────────────────────────────────
-Day 1+    Eng 1: corpus authoring, chunking, ChromaDB, RAG retrieval, MCP tools
-          Eng 2: stub MCP server → agent orchestrator → web app (no waiting)
-          Eng 3: skeleton deploy → CI/CD green → eval questions → docs skeleton
+Day 1+    Richard: corpus authoring, chunking, ChromaDB, RAG retrieval, MCP tools
+          Moe:     stub MCP server → agent orchestrator → web app (no waiting)
+          Diva:    skeleton deploy → CI/CD green → eval questions → docs skeleton
 
 Integration (no fixed date — swap env vars when each component is ready):
-          Eng 2 sets MCP_SERVER_URL → Eng 1's real server  (1 env var)
-          Eng 3 points deployment  → Eng 2's real app      (1 env var)
-          Eng 3 runs eval suite    → fills in real metrics
+          Moe  sets MCP_SERVER_URL → Richard's real server  (1 env var)
+          Diva points deployment   → Moe's real app         (1 env var)
+          Diva runs eval suite     → fills in real metrics
 
 Final     All:  integration test → demo rehearsal → video recording
 ```
@@ -232,30 +232,30 @@ Final     All:  integration test → demo rehearsal → video recording
 
 ## Grading Checklist
 
-| Requirement | Owner | Status |
+| Requirement | Owner (Engineer) | Status |
 |---|---|---|
-| venv + requirements.txt + env vars | Eng 1 | — |
-| ≥2 file formats parsed | Eng 1 | — |
-| Heading-aware chunking with metadata | Eng 1 | — |
-| Local vector store (ChromaDB) | Eng 1 | — |
-| Top-k retrieval + guardrails | Eng 1 | — |
-| Multi-document retrieval example | Eng 1 | — |
-| Agent orchestrator with reasoning trace | Eng 2 | — |
-| 2 multi-step agentic workflows | Eng 2 | — |
-| MCP server with ≥5 tools via HTTP | Eng 2 | — |
-| Agent calls tools through MCP layer | Eng 2 | — |
-| /chat and /health endpoints | Eng 2 | — |
-| Chat UI with citation + trace display | Eng 2 | — |
-| Deployed to Render/Railway | Eng 3 | — |
-| GitHub Actions CI/CD + deploy gate | Eng 3 | — |
-| 25-question eval set with gold answers | Eng 3 | — |
-| Groundedness + citation accuracy reported | Eng 3 | — |
-| Tool selection + workflow completion reported | Eng 3 | — |
-| Latency p50/p95 reported | Eng 3 | — |
-| Ablation study | Eng 3 | — |
-| README.md | Eng 3 | — |
-| design-and-evaluation.md | Eng 3 | — |
-| ai-tooling.md | Eng 3 | — |
-| deployed.md | Eng 3 | — |
+| venv + requirements.txt + env vars | Richard | — |
+| ≥2 file formats parsed | Richard | — |
+| Heading-aware chunking with metadata | Richard | — |
+| Local vector store (ChromaDB) | Richard | — |
+| Top-k retrieval + guardrails | Richard | — |
+| Multi-document retrieval example | Richard | — |
+| Agent orchestrator with reasoning trace | Moe | — |
+| 2 multi-step agentic workflows | Moe | — |
+| MCP server with ≥5 tools via HTTP | Moe | — |
+| Agent calls tools through MCP layer | Moe | — |
+| /chat and /health endpoints | Moe | — |
+| Chat UI with citation + trace display | Moe | — |
+| Deployed to Render/Railway | Diva | — |
+| GitHub Actions CI/CD + deploy gate | Diva | — |
+| 25-question eval set with gold answers | Diva | — |
+| Groundedness + citation accuracy reported | Diva | — |
+| Tool selection + workflow completion reported | Diva | — |
+| Latency p50/p95 reported | Diva | — |
+| Ablation study | Diva | — |
+| README.md | Diva | — |
+| design-and-evaluation.md | Diva | — |
+| ai-tooling.md | Diva | — |
+| deployed.md | Diva | — |
 | Repo shared with quantic-grader | Any | — |
 | Demo video (7–10 min, all 3 on camera with ID) | All | — |
