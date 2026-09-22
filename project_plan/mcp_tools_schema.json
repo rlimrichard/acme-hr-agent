@@ -185,6 +185,27 @@
           "conditions": { "type": "string", "description": "Any conditions or limits that apply" }
         }
       }
+    },
+    {
+      "name": "draft_hr_email",
+      "description": "Draft (but never send) an HR or manager email using supplied context. This is a safe mock action.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "employee_id": { "type": "string" },
+          "recipient_role": { "type": "string", "description": "e.g. direct manager" },
+          "subject": { "type": "string" },
+          "body": { "type": "string" }
+        },
+        "required": ["employee_id", "recipient_role", "subject", "body"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["drafted"] },
+          "draft": { "type": "object" }
+        }
+      }
     }
   ]
 }
