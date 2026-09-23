@@ -1,18 +1,20 @@
 """
 HR Policy Ingestion Pipeline
-Chunks Markdown policy documents (heading-aware + recursive character split)
+Supports .md, .html, .txt, and .pdf source documents.
+Chunks each document (heading-aware for md/html, paragraph-based for txt/pdf)
 and embeds them into a local ChromaDB collection.
 """
 
-import os
 import re
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 import chromadb
+from bs4 import BeautifulSoup
 from chromadb.config import Settings
+from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 
 # ---------------------------------------------------------------------------
@@ -85,19 +87,24 @@ class Chunk:
 HEADING_RE = re.compile(r"^(#{1,3})\s+(.+)$", re.MULTILINE)
 
 
-def _extract_doc_title(markdown: str) -> str:
-    """Return the H1 title, or 'Unknown' if absent."""
-    m = re.search(r"^#\s+(.+)$", markdown, re.MULTILINE)
-    return m.group(1).strip() if m else "Unknown"
+def _extract_doc_title(text: str, fallback: str = "Unknown") -> str:
+    """Return the H1 title if present, otherwise the provided fallback."""
+    m = re.search(r"^#\s+(.+)$", text, re.MULTILINE)
+    return m.group(1).strip() if m else fallback
 
 
-def split_by_headings(markdown: str, doc_id: str) -> list[HeadingSection]:
+def _title_from_stem(stem: str) -> str:
+    """Derive a human-readable title from a filename stem, e.g. 'pto_policy' → 'Pto Policy'."""
+    return stem.replace("_", " ").title()
+
+
+def split_by_headings(markdown: str, doc_id: str, fallback_title: str = "Unknown") -> list[HeadingSection]:
     """
     Walk all H1/H2/H3 headings and collect the text that follows each one
     until the next heading of equal or higher level.
     Returns a flat list of HeadingSection objects with a breadcrumb path.
     """
-    doc_title = _extract_doc_title(markdown)
+    doc_title = _extract_doc_title(markdown, fallback=fallback_title)
 
     # Collect (start_pos, level, heading_text) for every heading
     headings: list[tuple[int, int, str]] = []
@@ -218,22 +225,83 @@ def chunk_section(section: HeadingSection,
 
 
 # ---------------------------------------------------------------------------
-# Step 3 – Load, parse, and chunk all policy files
+# Step 3 – Format-aware parsers: all return plain Markdown-like text
+# ---------------------------------------------------------------------------
+
+def _parse_md(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def _parse_html(path: Path) -> str:
+    """Convert HTML headings → markdown # syntax, strip remaining tags."""
+    soup = BeautifulSoup(path.read_text(encoding="utf-8"), "html.parser")
+    lines: list[str] = []
+    for el in soup.find_all(["h1", "h2", "h3", "p", "li", "br"]):
+        tag = el.name
+        text = el.get_text(" ", strip=True)
+        if not text:
+            continue
+        if tag == "h1":
+            lines.append(f"# {text}")
+        elif tag == "h2":
+            lines.append(f"## {text}")
+        elif tag == "h3":
+            lines.append(f"### {text}")
+        elif tag == "li":
+            lines.append(f"- {text}")
+        else:
+            lines.append(text)
+    return "\n\n".join(lines)
+
+
+def _parse_txt(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def _parse_pdf(path: Path) -> str:
+    reader = PdfReader(str(path))
+    pages: list[str] = []
+    for page in reader.pages:
+        text = page.extract_text() or ""
+        pages.append(text.strip())
+    return "\n\n".join(p for p in pages if p)
+
+
+_PARSERS = {
+    ".md":   _parse_md,
+    ".html": _parse_html,
+    ".txt":  _parse_txt,
+    ".pdf":  _parse_pdf,
+}
+
+SUPPORTED_EXTENSIONS = set(_PARSERS)
+
+
+# ---------------------------------------------------------------------------
+# Step 4 – Load, parse, and chunk all policy files
 # ---------------------------------------------------------------------------
 
 def load_and_chunk_policies(policies_dir: Path) -> list[Chunk]:
     all_chunks: list[Chunk] = []
-    for md_file in sorted(policies_dir.glob("*.md")):
-        stem   = md_file.stem
+    policy_files = sorted(
+        f for f in policies_dir.iterdir()
+        if f.suffix in SUPPORTED_EXTENSIONS
+    )
+    for policy_file in policy_files:
+        stem   = policy_file.stem
         doc_id = DOC_ID_MAP.get(stem, stem.upper())
-        markdown = md_file.read_text(encoding="utf-8")
+        fmt    = policy_file.suffix
 
-        sections = split_by_headings(markdown, doc_id)
+        parser         = _PARSERS[fmt]
+        text           = parser(policy_file)
+        fallback_title = _title_from_stem(stem)
+
+        sections = split_by_headings(text, doc_id, fallback_title=fallback_title)
         file_chunks: list[Chunk] = []
         for section in sections:
             file_chunks.extend(chunk_section(section))
 
-        print(f"  [{doc_id}] {md_file.name}: "
+        print(f"  [{doc_id}] {policy_file.name} ({fmt}): "
               f"{len(sections)} sections → {len(file_chunks)} chunks")
         all_chunks.extend(file_chunks)
 
@@ -241,7 +309,7 @@ def load_and_chunk_policies(policies_dir: Path) -> list[Chunk]:
 
 
 # ---------------------------------------------------------------------------
-# Step 4 – Embed and insert into ChromaDB
+# Step 5 – Embed and insert into ChromaDB
 # ---------------------------------------------------------------------------
 
 def build_chroma_collection(chunks: list[Chunk],

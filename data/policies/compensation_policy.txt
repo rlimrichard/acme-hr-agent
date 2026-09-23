@@ -1,18 +1,18 @@
-# Compensation and Total Rewards Policy
+Compensation and Total Rewards Policy
 
-**Document ID:** POL-CMP-012  
-**Effective Date:** January 1, 2025  
-**Last Reviewed:** September 1, 2025  
-**Owner:** People Operations / Total Rewards  
-**Version:** 2.2
+Document ID: POL-CMP-012  
+Effective Date: January 1, 2025  
+Last Reviewed: September 1, 2025  
+Owner: People Operations / Total Rewards  
+Version: 2.2
 
 ---
 
-## 1. Purpose and Scope
+1. Purpose and Scope
 
 This policy defines Acme Corp's approach to base compensation, variable pay, and equity — the cash and ownership elements of total rewards. It applies to all regular full-time and part-time employees.
 
-> **Related policies (ownership boundaries):**
+> Related policies (ownership boundaries):
 > - Health, retirement, and insurance benefits: POL-BEN-005
 > - Expense reimbursement and stipends: POL-EXP-001
 > - Education assistance dollar amounts: POL-BEN-005 §10.2
@@ -20,28 +20,28 @@ This policy defines Acme Corp's approach to base compensation, variable pay, and
 
 ---
 
-## 2. Compensation Philosophy
+2. Compensation Philosophy
 
-### 2.1 Guiding Principles
+2.1 Guiding Principles
 
 Acme Corp's compensation philosophy is built on four principles:
 
-1. **Market-competitive:** We target the **50th–75th percentile** of the market for base salary, benchmarked against technology-sector peers of comparable size and stage, using data from Radford/Aon and Levels.fyi as primary sources.
-2. **Pay for performance:** Variable compensation (bonus and equity refreshes) differentiates meaningfully based on individual and company performance.
-3. **Internal equity:** Pay decisions are reviewed for internal consistency across role, level, tenure, and performance to prevent unexplained pay gaps.
-4. **Transparent:** Employees understand how their pay is determined and what drives changes. Pay band ranges are disclosed to employees in their role.
+1. Market-competitive: We target the 50th–75th percentile of the market for base salary, benchmarked against technology-sector peers of comparable size and stage, using data from Radford/Aon and Levels.fyi as primary sources.
+2. Pay for performance: Variable compensation (bonus and equity refreshes) differentiates meaningfully based on individual and company performance.
+3. Internal equity: Pay decisions are reviewed for internal consistency across role, level, tenure, and performance to prevent unexplained pay gaps.
+4. Transparent: Employees understand how their pay is determined and what drives changes. Pay band ranges are disclosed to employees in their role.
 
-### 2.2 Total Compensation View
+2.2 Total Compensation View
 
 Acme Corp evaluates total compensation as the sum of: base salary + annual bonus target + annualized equity value + benefits. Offer letters and annual total compensation statements reflect this full picture.
 
 ---
 
-## 3. Job Levels and Pay Bands
+3. Job Levels and Pay Bands
 
-### 3.1 Job Leveling Framework
+3.1 Job Leveling Framework
 
-All roles at Acme Corp are mapped to a level on the company's job architecture, which runs from **Level 1 (entry)** to **Level 10 (C-suite)**. Levels group roles by scope, impact, complexity, and autonomy — not by title alone.
+All roles at Acme Corp are mapped to a level on the company's job architecture, which runs from Level 1 (entry) to Level 10 (C-suite). Levels group roles by scope, impact, complexity, and autonomy — not by title alone.
 
 | Level Range | Category |
 |---|---|
@@ -52,16 +52,16 @@ All roles at Acme Corp are mapped to a level on the company's job architecture, 
 
 The full Job Architecture document with level definitions is maintained by the Total Rewards team and accessible to all employees in Confluence.
 
-### 3.2 Pay Bands
+3.2 Pay Bands
 
-Each level has an associated **pay band** with a minimum, midpoint, and maximum. Pay bands are:
+Each level has an associated pay band with a minimum, midpoint, and maximum. Pay bands are:
 - Reviewed and updated annually each January based on updated market benchmarking
 - National in scope by default; geographic differentials (Section 3.3) are applied on top
 - Disclosed to employees: employees may request their current pay band range from their HR Business Partner or People Operations
 
-New hires are typically placed between the **minimum and midpoint** of the band. Placement above the midpoint at hire requires VP approval and written justification.
+New hires are typically placed between the minimum and midpoint of the band. Placement above the midpoint at hire requires VP approval and written justification.
 
-### 3.3 Geographic Differentials
+3.3 Geographic Differentials
 
 Base salary pay bands are adjusted by geographic tier to reflect cost of labor:
 
@@ -72,20 +72,20 @@ Base salary pay bands are adjusted by geographic tier to reflect cost of labor:
 | Tier 3 (Standard) | All other US locations | National base |
 | International | Governed by local entity structure | Separate local benchmarks |
 
-Remote employees are compensated based on their **permanent home address** location tier, not the location of their manager or team.
+Remote employees are compensated based on their permanent home address location tier, not the location of their manager or team.
 
 ---
 
-## 4. Salary Review Cycle
+4. Salary Review Cycle
 
-### 4.1 Annual Merit Review
+4.1 Annual Merit Review
 
-Acme Corp conducts one **Annual Merit Review** per year, with increases effective **April 1st**. Merit increases are not guaranteed; they are based on:
+Acme Corp conducts one Annual Merit Review per year, with increases effective April 1st. Merit increases are not guaranteed; they are based on:
 - Individual performance rating from the prior year's annual review (POL-PFM-010 §4)
 - Position within the pay band (employees below midpoint may receive higher adjustments to ensure internal equity)
 - Company financial performance and approved merit budget
 
-### 4.2 Merit Increase Guidelines
+4.2 Merit Increase Guidelines
 
 Merit increase ranges by performance rating (subject to annual budget; the following are illustrative):
 
@@ -99,27 +99,27 @@ Merit increase ranges by performance rating (subject to annual budget; the follo
 
 Employees at or above the pay band maximum receive 0% merit increase regardless of rating. Off-cycle adjustments (Section 4.3) may apply for retention purposes.
 
-### 4.3 Off-Cycle Salary Adjustments
+4.3 Off-Cycle Salary Adjustments
 
 Outside the annual merit cycle, salary changes may occur for:
-- **Promotion:** Compensation adjusts to the new level's band, typically a **10%–20% increase** (see POL-PFM-010 §8.4)
-- **Counter-offer / retention:** Requires CHRO and Finance approval; used sparingly
-- **Pay equity correction:** Initiated by the Total Rewards team following a pay equity audit; not subject to budget approval
-- **Role scope change:** Significant expansion of responsibilities without a title change
+- Promotion: Compensation adjusts to the new level's band, typically a 10%–20% increase (see POL-PFM-010 §8.4)
+- Counter-offer / retention: Requires CHRO and Finance approval; used sparingly
+- Pay equity correction: Initiated by the Total Rewards team following a pay equity audit; not subject to budget approval
+- Role scope change: Significant expansion of responsibilities without a title change
 
 All off-cycle adjustments are documented in Workday and require VP and HR approval.
 
 ---
 
-## 5. Annual Bonus Program
+5. Annual Bonus Program
 
-### 5.1 Eligibility
+5.1 Eligibility
 
-All regular full-time and part-time employees at **L3 and above** who have been employed for at least **6 months** by December 31st are eligible for an annual bonus.
+All regular full-time and part-time employees at L3 and above who have been employed for at least 6 months by December 31st are eligible for an annual bonus.
 
 Employees on an active Performance Improvement Plan as of December 31st are not eligible for a bonus payout for that cycle.
 
-### 5.2 Bonus Targets
+5.2 Bonus Targets
 
 Bonus targets are expressed as a percentage of annual base salary and vary by level:
 
@@ -133,47 +133,46 @@ Bonus targets are expressed as a percentage of annual base salary and vary by le
 
 Targets represent the expected payout at 100% performance — both individual and company performance at plan.
 
-### 5.3 Bonus Calculation
+5.3 Bonus Calculation
 
-Final bonus payout = **Base Salary × Target % × Company Multiplier × Individual Multiplier**
+Final bonus payout = Base Salary × Target % × Company Multiplier × Individual Multiplier
+- Company Multiplier: Based on Acme Corp's financial performance against annual plan targets (0% – 150%)
+- Individual Multiplier: Based on individual performance rating (0% for ratings 1–2; 80% for 3; 110% for 4; 130% for 5)
 
-- **Company Multiplier:** Based on Acme Corp's financial performance against annual plan targets (0% – 150%)
-- **Individual Multiplier:** Based on individual performance rating (0% for ratings 1–2; 80% for 3; 110% for 4; 130% for 5)
+5.4 Bonus Payment Timing
 
-### 5.4 Bonus Payment Timing
+Annual bonuses are paid in March following the close of the performance year, after financial results are finalized. Employees must be actively employed on the bonus payment date to receive the payout; employees who have resigned or been terminated before payment date forfeit the bonus unless the separation agreement specifies otherwise.
 
-Annual bonuses are paid in **March** following the close of the performance year, after financial results are finalized. Employees must be actively employed on the **bonus payment date** to receive the payout; employees who have resigned or been terminated before payment date forfeit the bonus unless the separation agreement specifies otherwise.
-
-### 5.5 Proration
+5.5 Proration
 
 Employees hired between January 1st and June 30th receive a prorated bonus based on months of service in the performance year. Employees hired after July 1st are not eligible for a bonus in their first partial year.
 
 ---
 
-## 6. Equity Compensation
+6. Equity Compensation
 
-### 6.1 Equity Philosophy
+6.1 Equity Philosophy
 
 Equity is a core component of compensation at Acme Corp, particularly for senior and technical roles. Equity aligns employee interests with long-term company success.
 
-### 6.2 New Hire Equity Grants
+6.2 New Hire Equity Grants
 
-Equity grants are made in the form of **Restricted Stock Units (RSUs)** for all levels. Options may be issued at the discretion of the Board for specific roles or circumstances.
+Equity grants are made in the form of Restricted Stock Units (RSUs) for all levels. Options may be issued at the discretion of the Board for specific roles or circumstances.
 
 New hire RSU grants are determined at offer:
 - Grant size is based on level, role, and competitive market data
 - The grant value at the time of offer is expressed in dollars and converted to a number of shares at the next quarterly grant date using the 30-day trailing average stock price
 - Grant values by level are reviewed annually and updated in the Compensation Framework (available on Confluence)
 
-### 6.3 RSU Vesting Schedule
+6.3 RSU Vesting Schedule
 
-Standard RSU vesting follows a **4-year schedule with a 1-year cliff:**
-- 25% of the grant vests on the **1-year anniversary** of the grant date
-- Remaining 75% vests **quarterly** over the following 3 years (6.25% per quarter)
+Standard RSU vesting follows a 4-year schedule with a 1-year cliff:
+- 25% of the grant vests on the 1-year anniversary of the grant date
+- Remaining 75% vests quarterly over the following 3 years (6.25% per quarter)
 
 Vesting is contingent on continued employment. Unvested shares are forfeited upon separation.
 
-### 6.4 Annual Equity Refresh Grants
+6.4 Annual Equity Refresh Grants
 
 High performers and key retentions may receive annual refresh equity grants in Q1, following the annual review cycle. Refresh eligibility:
 - Performance rating of 4 or 5 in the prior year
@@ -182,31 +181,30 @@ High performers and key retentions may receive annual refresh equity grants in Q
 
 Refresh grants follow the same vesting schedule as new hire grants, starting from the grant date.
 
-### 6.5 Equity Administration
+6.5 Equity Administration
 
-RSUs are administered through **Carta**. Employees access vesting schedules, tax elections, and exercise windows through their Carta account. Questions about tax treatment of equity should be directed to a personal tax advisor; Acme Corp does not provide individual tax advice.
+RSUs are administered through Carta. Employees access vesting schedules, tax elections, and exercise windows through their Carta account. Questions about tax treatment of equity should be directed to a personal tax advisor; Acme Corp does not provide individual tax advice.
 
 ---
 
-## 7. Pay Transparency and Equity
+7. Pay Transparency and Equity
 
-### 7.1 Pay Band Disclosure
+7.1 Pay Band Disclosure
 
 Employees may request their current pay band range from People Operations at any time. Acme Corp discloses pay ranges in all job postings in jurisdictions where required by law (California, Colorado, New York, Washington), and company-wide as a transparency commitment.
 
-### 7.2 Pay Equity Audits
+7.2 Pay Equity Audits
 
-Total Rewards conducts a **pay equity analysis** annually (Q1) examining compensation by gender, ethnicity, and other protected characteristics. Identified gaps that cannot be explained by legitimate factors (level, tenure, performance, geography) are corrected in the same merit cycle.
+Total Rewards conducts a pay equity analysis annually (Q1) examining compensation by gender, ethnicity, and other protected characteristics. Identified gaps that cannot be explained by legitimate factors (level, tenure, performance, geography) are corrected in the same merit cycle.
 
-### 7.3 Compensation Discussions
+7.3 Compensation Discussions
 
 Employees have the legal right to discuss their compensation with colleagues. Acme Corp will not retaliate against employees for discussing pay. Managers may not instruct employees to keep their compensation confidential.
 
 ---
 
-## 8. Contact and Questions
-
-- **Total Rewards Team:** total-rewards@acmecorp.com
-- **HR Business Partner** for pay band inquiries and promotion adjustments
-- **Carta (equity administration):** carta.com
-- **Payroll (paycheck questions):** payroll@acmecorp.com
+8. Contact and Questions
+- Total Rewards Team: total-rewards@acmecorp.com
+- HR Business Partner for pay band inquiries and promotion adjustments
+- Carta (equity administration): carta.com
+- Payroll (paycheck questions): payroll@acmecorp.com

@@ -1,14 +1,14 @@
-# Diversity, Equity, and Inclusion Policy
+Diversity, Equity, and Inclusion Policy
 
-**Document ID:** POL-DEI-014  
-**Effective Date:** January 1, 2025  
-**Last Reviewed:** September 1, 2025  
-**Owner:** People Operations / DEI Office  
-**Version:** 2.0
+Document ID: POL-DEI-014  
+Effective Date: January 1, 2025  
+Last Reviewed: September 1, 2025  
+Owner: People Operations / DEI Office  
+Version: 2.0
 
 ---
 
-## 1. Purpose and Scope
+1. Purpose and Scope
 
 This policy articulates Acme Corp's commitment to creating and sustaining a diverse, equitable, and inclusive workplace. It defines the structures, programs, and obligations that bring this commitment to life.
 
@@ -19,7 +19,7 @@ This policy applies to all employees, managers, and company leadership. It gover
 
 ---
 
-## 2. Commitment Statement
+2. Commitment Statement
 
 Acme Corp is committed to building a workforce that reflects the full spectrum of human diversity and a culture where every person can do their best work. We believe diversity of background, perspective, and experience drives better decisions and stronger outcomes.
 
@@ -27,96 +27,95 @@ This commitment extends across the full employee lifecycle: how we recruit, deve
 
 ---
 
-## 3. DEI Strategy and Goals
+3. DEI Strategy and Goals
 
-### 3.1 Annual DEI Plan
+3.1 Annual DEI Plan
 
-The DEI Office publishes an **Annual DEI Plan** each January, in partnership with the Executive Team. The plan sets measurable goals across three dimensions:
-- **Representation:** Workforce composition targets by level and function
-- **Equity:** Pay equity, promotion rate equity, and access to development opportunities
-- **Inclusion:** Employee experience scores (measured via annual engagement survey) segmented by demographic group
+The DEI Office publishes an Annual DEI Plan each January, in partnership with the Executive Team. The plan sets measurable goals across three dimensions:
+- Representation: Workforce composition targets by level and function
+- Equity: Pay equity, promotion rate equity, and access to development opportunities
+- Inclusion: Employee experience scores (measured via annual engagement survey) segmented by demographic group
 
-### 3.2 Reporting and Accountability
-
-- **Quarterly DEI Dashboard:** Published internally on Confluence; visible to all employees. Includes representation data, hiring funnel demographics, and promotion rates by group.
-- **Annual DEI Report:** Published externally each spring. Summarizes progress against the prior year's goals and sets the next year's commitments.
-- **Executive accountability:** A DEI metric is included in every VP's and CHRO's annual performance review.
+3.2 Reporting and Accountability
+- Quarterly DEI Dashboard: Published internally on Confluence; visible to all employees. Includes representation data, hiring funnel demographics, and promotion rates by group.
+- Annual DEI Report: Published externally each spring. Summarizes progress against the prior year's goals and sets the next year's commitments.
+- Executive accountability: A DEI metric is included in every VP's and CHRO's annual performance review.
 
 ---
 
-## 4. Equitable Hiring Practices
+4. Equitable Hiring Practices
 
-### 4.1 Inclusive Job Descriptions
+4.1 Inclusive Job Descriptions
 
 All job postings must be reviewed by the DEI Office or trained HR Business Partner for language that may deter qualified candidates from underrepresented groups. Specific requirements:
 - Use inclusive, gender-neutral language
 - Distinguish "required" qualifications from "preferred"; avoid credential inflation
 - Remove qualifications that do not have demonstrable relevance to the role
 
-### 4.2 Diverse Candidate Slates
+4.2 Diverse Candidate Slates
 
 Hiring managers are expected to work with Talent Acquisition to ensure candidate slates include underrepresented candidates before advancing to the final interview round. Posting, sourcing, and pipeline-building steps are governed by POL-REC-016 §3–4.
 
-### 4.3 Structured Interviews
+4.3 Structured Interviews
 
-All final-round interviews must use **structured interview formats** — identical questions asked in the same order to every candidate, evaluated against pre-defined rubrics. Structured interviewing reduces the influence of implicit bias on hiring decisions. Interview training is required for all interviewers before conducting their first interview (available in Workday Learning).
+All final-round interviews must use structured interview formats — identical questions asked in the same order to every candidate, evaluated against pre-defined rubrics. Structured interviewing reduces the influence of implicit bias on hiring decisions. Interview training is required for all interviewers before conducting their first interview (available in Workday Learning).
 
-### 4.4 Diverse Interview Panels
+4.4 Diverse Interview Panels
 
 For roles at L6 and above, interview panels must include at least one interviewer from outside the immediate team and, where practicable, represent gender and ethnic diversity.
 
 ---
 
-## 5. Employee Resource Groups (ERGs)
+5. Employee Resource Groups (ERGs)
 
-### 5.1 Purpose
+5.1 Purpose
 
 Employee Resource Groups are voluntary, employee-led communities built around shared identities, experiences, or interests. ERGs support belonging, professional development, community, and company culture. They also serve as advisory voices to leadership on issues affecting their communities.
 
-### 5.2 Current ERGs
+5.2 Current ERGs
 
 Acme Corp currently sponsors the following ERGs:
 
 | ERG Name | Community Focus |
 |---|---|
-| **AcmeWomen** | Women and non-binary employees |
-| **AcmePride** | LGBTQ+ employees and allies |
-| **AcmeBlack** | Black and African American employees |
-| **AcmeLatinx** | Hispanic and Latinx employees |
-| **AcmeAsian** | Asian and Pacific Islander employees |
-| **AcmeVets** | Military veterans and their families |
-| **AcmeAbility** | Employees with disabilities and their allies |
-| **AcmeParents** | Parents and caregivers |
+| AcmeWomen | Women and non-binary employees |
+| AcmePride | LGBTQ+ employees and allies |
+| AcmeBlack | Black and African American employees |
+| AcmeLatinx | Hispanic and Latinx employees |
+| AcmeAsian | Asian and Pacific Islander employees |
+| AcmeVets | Military veterans and their families |
+| AcmeAbility | Employees with disabilities and their allies |
+| AcmeParents | Parents and caregivers |
 
 New ERGs may be proposed to the DEI Office. Formation requires a minimum of 10 founding members and a charter aligned with the ERG guidelines.
 
-### 5.3 ERG Support and Resources
+5.3 ERG Support and Resources
 
 Each ERG receives:
 - An annual operating budget (amount disclosed in the ERG Charter Guidelines document on Confluence)
-- An **Executive Sponsor** from the leadership team (VP level or above)
+- An Executive Sponsor from the leadership team (VP level or above)
 - Access to company meeting rooms and communication platforms
-- Up to **4 hours per month** of paid time for ERG leads to carry out official ERG duties
+- Up to 4 hours per month of paid time for ERG leads to carry out official ERG duties
 
 ERG participation for non-lead members is voluntary and conducted outside of core work hours unless the manager explicitly approves time during work hours.
 
 ---
 
-## 6. Reasonable Accommodations
+6. Reasonable Accommodations
 
-### 6.1 ADA and Disability Accommodations
+6.1 ADA and Disability Accommodations
 
 Acme Corp provides reasonable accommodations to qualified employees with disabilities as required by the Americans with Disabilities Act (ADA) and applicable state laws, unless doing so would cause undue hardship.
 
-### 6.2 Requesting an Accommodation
+6.2 Requesting an Accommodation
 
 Employees who need a workplace accommodation must:
 1. Submit an accommodation request to People Operations via Workday or by emailing accommodations@acmecorp.com. The request does not need to name a specific diagnosis — describing the functional limitation is sufficient.
-2. People Operations will initiate an **interactive process** with the employee within **5 business days** of receipt.
+2. People Operations will initiate an interactive process with the employee within 5 business days of receipt.
 3. The employee may be asked to provide supporting documentation from a licensed healthcare provider confirming the functional limitation and recommended accommodation.
-4. A decision is communicated in writing within **15 business days** of receiving all required information.
+4. A decision is communicated in writing within 15 business days of receiving all required information.
 
-### 6.3 Types of Accommodations
+6.3 Types of Accommodations
 
 Common accommodations include but are not limited to:
 - Modified work schedules or reduced hours
@@ -126,19 +125,19 @@ Common accommodations include but are not limited to:
 - Reserved parking or transit assistance
 - Quiet workspaces or reduced sensory environments
 
-### 6.4 Confidentiality of Medical Information
+6.4 Confidentiality of Medical Information
 
-Medical information provided in connection with an accommodation request is maintained in a **separate, confidential file** — not in the employee's general personnel file — and is accessible only to People Operations and those with a direct need to know. Managers are informed of the accommodation itself, not the underlying medical condition.
+Medical information provided in connection with an accommodation request is maintained in a separate, confidential file — not in the employee's general personnel file — and is accessible only to People Operations and those with a direct need to know. Managers are informed of the accommodation itself, not the underlying medical condition.
 
-### 6.5 Religious Accommodations
+6.5 Religious Accommodations
 
 Accommodations for sincerely held religious beliefs and practices are handled through the same interactive process. See also POL-HOL-003 §8 for holiday-specific religious accommodations.
 
 ---
 
-## 7. Inclusion Culture Practices
+7. Inclusion Culture Practices
 
-### 7.1 Inclusive Meeting Standards
+7.1 Inclusive Meeting Standards
 
 All meeting organizers are expected to follow inclusive meeting practices:
 - Share agendas in advance to allow preparation
@@ -147,33 +146,32 @@ All meeting organizers are expected to follow inclusive meeting practices:
 - Avoid scheduling across major religious or cultural observances where feasible
 - Provide meeting recordings or notes for employees who could not attend due to time zone differences
 
-### 7.2 Accessibility in Communications
+7.2 Accessibility in Communications
 
 Company-wide communications, presentations, and documents should meet accessibility standards:
 - Use sufficient color contrast for charts and graphics
 - Provide alt text for images in documents and slides
 - Caption all video content published internally
 
-### 7.3 Inclusion Index
+7.3 Inclusion Index
 
-People Operations includes an **Inclusion Index** in the annual employee engagement survey, measuring employees' experience of psychological safety, belonging, and equitable treatment, broken down by team, function, and demographic group. Results are shared with managers and published in the DEI Dashboard.
+People Operations includes an Inclusion Index in the annual employee engagement survey, measuring employees' experience of psychological safety, belonging, and equitable treatment, broken down by team, function, and demographic group. Results are shared with managers and published in the DEI Dashboard.
 
 ---
 
-## 8. Reporting DEI Concerns
+8. Reporting DEI Concerns
 
 Employees who experience or observe conduct inconsistent with this policy — including inequitable treatment in hiring, promotion, or access to opportunities — may report concerns through:
-- **People Operations:** people-ops@acmecorp.com
-- **Anonymous Ethics Hotline:** ethics-hotline.acmecorp.com
-- **DEI Office directly:** dei@acmecorp.com
+- People Operations: people-ops@acmecorp.com
+- Anonymous Ethics Hotline: ethics-hotline.acmecorp.com
+- DEI Office directly: dei@acmecorp.com
 
 Retaliation against employees who raise DEI concerns in good faith is prohibited under POL-WPC-009 §4.2.
 
 ---
 
-## 9. Contact and Questions
-
-- **DEI Office:** dei@acmecorp.com
-- **Accommodations requests:** accommodations@acmecorp.com
-- **ERG inquiries:** erg-program@acmecorp.com
-- **People Operations:** people-ops@acmecorp.com
+9. Contact and Questions
+- DEI Office: dei@acmecorp.com
+- Accommodations requests: accommodations@acmecorp.com
+- ERG inquiries: erg-program@acmecorp.com
+- People Operations: people-ops@acmecorp.com

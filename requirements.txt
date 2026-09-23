@@ -1,3 +1,9 @@
 chromadb>=0.5.0
 sentence-transformers>=3.0.0
 torch>=2.0.0
+# document parsing
+beautifulsoup4>=4.12.0
+pypdf>=4.0.0
+# policy format conversion (scripts/convert_policies.py)
+markdown>=3.6
+reportlab>=4.0.0
