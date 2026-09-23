@@ -74,7 +74,7 @@ FORMAT_BY_DOC = {
 MIN_CHUNKS_PER_DOC = 5   # every policy should produce at least 5 chunks
 
 
-def test_coverage(col):
+def test_coverage(col) -> bool:
     print("\n=== 1. Coverage ===")
     all_meta = col.get(include=["metadatas"])["metadatas"]
     total    = len(all_meta)
@@ -82,57 +82,60 @@ def test_coverage(col):
     for m in all_meta:
         by_doc.setdefault(m["doc_id"], []).append(m)
 
-    check("Total chunks > 500", total > 500, f"{total} chunks")
+    results = []
+    results.append(check("Total chunks > 500", total > 500, f"{total} chunks"))
 
     found_ids = set(by_doc.keys())
     missing   = EXPECTED_DOC_IDS - found_ids
-    check("All 20 doc IDs present", not missing, f"missing: {missing}" if missing else "")
+    results.append(check("All 20 doc IDs present", not missing,
+                         f"missing: {missing}" if missing else ""))
 
     for doc_id, chunks in sorted(by_doc.items()):
         fmt = FORMAT_BY_DOC.get(doc_id, "?")
         ok  = len(chunks) >= MIN_CHUNKS_PER_DOC
-        check(f"{doc_id} ({fmt}): ≥{MIN_CHUNKS_PER_DOC} chunks",
-              ok, f"{len(chunks)} chunks")
+        results.append(check(f"{doc_id} ({fmt}): ≥{MIN_CHUNKS_PER_DOC} chunks",
+                             ok, f"{len(chunks)} chunks"))
+    return all(results)
 
 
 # ---------------------------------------------------------------------------
 # 2. Metadata quality: section and doc_title populated
 # ---------------------------------------------------------------------------
 
-def test_metadata(col):
+def test_metadata(col) -> bool:
     print("\n=== 2. Metadata Quality ===")
     all_data = col.get(include=["metadatas", "documents"])
     by_doc   = {}
     for m, d in zip(all_data["metadatas"], all_data["documents"]):
         by_doc.setdefault(m["doc_id"], []).append((m, d))
 
+    results = []
     for doc_id, items in sorted(by_doc.items()):
         fmt = FORMAT_BY_DOC.get(doc_id, "?")
 
-        # doc_title should never be "Unknown"
         bad_title = [m for m, _ in items if m["doc_title"] == "Unknown"]
-        check(f"{doc_id} ({fmt}): doc_title not 'Unknown'",
-              not bad_title, f"{len(bad_title)}/{len(items)} chunks have Unknown title")
+        results.append(check(f"{doc_id} ({fmt}): doc_title not 'Unknown'",
+                             not bad_title,
+                             f"{len(bad_title)}/{len(items)} chunks have Unknown title"))
 
-        # section should not be empty for md/html (they have headings)
         if fmt in ("md", "html"):
             no_section = [m for m, _ in items if not m["section"].strip()]
-            check(f"{doc_id} ({fmt}): section breadcrumb present",
-                  not no_section,
-                  f"{len(no_section)}/{len(items)} chunks missing section")
+            results.append(check(f"{doc_id} ({fmt}): section breadcrumb present",
+                                 not no_section,
+                                 f"{len(no_section)}/{len(items)} chunks missing section"))
 
-        # snippet should be non-empty
         no_snippet = [m for m, _ in items if not m["snippet"].strip()]
-        check(f"{doc_id} ({fmt}): snippet populated",
-              not no_snippet,
-              f"{len(no_snippet)}/{len(items)} chunks missing snippet")
+        results.append(check(f"{doc_id} ({fmt}): snippet populated",
+                             not no_snippet,
+                             f"{len(no_snippet)}/{len(items)} chunks missing snippet"))
+    return all(results)
 
 
 # ---------------------------------------------------------------------------
 # 3. Chunk text quality: no excessive overlap duplication
 # ---------------------------------------------------------------------------
 
-def test_chunk_text(col):
+def test_chunk_text(col) -> bool:
     print("\n=== 3. Chunk Text Quality ===")
     all_data = col.get(include=["metadatas", "documents"])
 
@@ -144,17 +147,17 @@ def test_chunk_text(col):
     for doc, meta in zip(all_data["documents"], all_data["metadatas"]):
         if not doc.strip():
             empty += 1
-        if len(doc) > 700:   # 512 target + 64 overlap + margin
+        if len(doc) > 700:
             too_long += 1
-        # detect overlap duplication: same substring of ≥80 chars repeated
         if len(doc) > 160:
             half = doc[: len(doc) // 2]
             if half in doc[len(half):]:
                 duplicated += 1
 
-    check("No empty chunks",           empty == 0,      f"{empty} empty")
-    check("No chunks > 700 chars",     too_long == 0,   f"{too_long}/{total} oversized")
-    warn( "Minimal overlap duplication",duplicated == 0, f"{duplicated}/{total} chunks appear duplicated")
+    r1 = check("No empty chunks",       empty == 0,    f"{empty} empty")
+    r2 = check("No chunks > 700 chars", too_long == 0, f"{too_long}/{total} oversized")
+    warn("Minimal overlap duplication", duplicated == 0, f"{duplicated}/{total} chunks appear duplicated")
+    return r1 and r2
 
 
 # ---------------------------------------------------------------------------
@@ -222,40 +225,48 @@ MULTI_DOC_TESTS = [
 ]
 
 
-def test_multi_doc_retrieval():
+def test_multi_doc_retrieval() -> bool:
     print("\n=== 5. Multi-Document Retrieval ===")
+    results = []
     for query, expected_docs, label in MULTI_DOC_TESTS:
         chunks   = retrieve_chunks(query, top_k=6)
         found    = {c["doc_id"] for c in chunks}
         covered  = expected_docs & found
-        check(
+        results.append(check(
             f"{label}",
             len(covered) == len(expected_docs),
             f"found {covered} of {expected_docs}",
-        )
+        ))
+    return all(results)
 
 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
-def main():
+def main() -> int:
     print("=" * 60)
     print("RAG Chunking & Retrieval Diagnostic")
     print("=" * 60)
 
     col = get_collection()
 
-    test_coverage(col)
-    test_metadata(col)
-    test_chunk_text(col)
-    test_retrieval()
-    test_multi_doc_retrieval()
+    results = [
+        test_coverage(col),
+        test_metadata(col),
+        test_chunk_text(col),
+        test_retrieval(),
+        test_multi_doc_retrieval(),
+    ]
 
     print("\n" + "=" * 60)
-    print("Done. Review WARN/FAIL lines above for issues to fix.")
-    print("=" * 60)
+    if all(results):
+        print("RESULT: ALL CHECKS PASSED (WARNs are advisory only).")
+        return 0
+    else:
+        print("RESULT: FAILED — see FAIL lines above.")
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
