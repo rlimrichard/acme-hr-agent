@@ -171,21 +171,35 @@ Expected tool-call sequence:
 
 ## 5. MCP Server Design
 
-**Transport:** Streamable HTTP (`localhost:8001`). Chosen over stdio because it works in both single-service and split-service deployments with no code changes — just update the `MCP_SERVER_URL` environment variable.
+**Implementation:** `src/mcp/server.py` — `MCPServer` from the `mcp` 2.x Python SDK (Anthropic). The server is 230 lines of Python with no custom HTTP routing; all protocol handling (session management, JSON-RPC 2.0 framing, SSE fallback) is handled by the SDK.
 
-**Tool discovery:** The agent client calls `GET /tools` on startup to discover all available tools and their JSON schemas. This satisfies the MCP tool-discovery requirement without hard-coding tool names in the orchestrator.
+**Transport:** Streamable HTTP on `localhost:8001`, endpoint path `/mcp`. Chosen over stdio because it works in both single-service and split-service deployments with no code changes — just update the `MCP_SERVER_URL` environment variable. In production the MCP server is launched as a subprocess by the FastAPI startup event.
 
-**7 tools exposed:**
+**Run the server:**
+```bash
+python -m src.mcp.server
+# → INFO: Uvicorn running on http://127.0.0.1:8001
+```
 
-| Tool | Data Source | Operation |
-|------|-------------|-----------|
-| `search_policy_documents` | ChromaDB | Semantic search, returns ranked chunks + citations |
-| `get_policy_section` | ChromaDB (filtered) | Exact section retrieval by doc_id + section name |
-| `lookup_employee_profile` | `data/employees.json` | Employee record by ID |
-| `check_pto_balance` | `data/employees.json` | PTO balance + pending requests |
-| `lookup_benefits_status` | `data/employees.json` | Benefits elections by employee ID |
-| `create_mock_hr_ticket` | In-memory store | Mock write; requires explicit user confirmation |
-| `check_policy_compliance` | RAG + employee profile | Combined read; returns `compliant: bool` + citations |
+**Tool discovery:** The agent client sends `{"method": "tools/list"}` via `POST /mcp` on startup (standard MCP JSON-RPC 2.0). This satisfies the MCP tool-discovery requirement without hard-coding tool names in the orchestrator.
+
+**7 tools implemented:**
+
+| Tool | Data Source | Key behaviour |
+|------|-------------|---------------|
+| `search_policy_documents` | ChromaDB | Semantic search; `score = 1 − cosine_distance`; optional `doc_id` filter |
+| `get_policy_section` | ChromaDB (filtered by `doc_id`) | Returns best-matching section chunk for a given section name query |
+| `lookup_employee_profile` | `data/employees.json` | Employee record by ID; returns `found: false` if unknown |
+| `check_pto_balance` | `data/employees.json` | Balance + pending requests (start/end date, days, status) |
+| `lookup_benefits_status` | `data/employees.json` | Health plan, dental, vision, FSA/HSA, 401k contribution + match |
+| `create_mock_hr_ticket` | In-memory dict | Generates `TKT-xxxxxxxx` ID; routes to team email by `ticket_type`; requires explicit confirmation |
+| `check_policy_compliance` | RAG + `data/employees.json` | Retrieves top-5 policy chunks; runs prohibition-keyword heuristic on best match; returns `compliant: bool` + `citations` array |
+
+**Compliance heuristic detail:** `check_policy_compliance` applies a conservative rule — `compliant: false` only when the best-matching chunk has cosine distance < 0.30 (strong semantic match) AND contains an explicit prohibition keyword (`"prohibited"`, `"must not"`, `"not permitted"`, etc.). This avoids false positives from tangentially related policy text. The agent layer synthesises the final answer from the returned citations.
+
+**Data singletons:** `data/employees.json` is loaded once at first call and cached in a module-level dict. The ChromaDB collection and embedding model use the same lazy-singleton pattern as `retrieval.py` — no reloading across tool calls within a server session.
+
+**Smoke tests:** `scripts/test_mcp.py` — 25 checks across 3 test suites (employee data tools, ticket creation, RAG-backed tools). Runs in CI immediately after the RAG diagnostic suite.
 
 Full JSON schemas for all tools are defined in `project_plan/mcp_tools_schema.json`.
 

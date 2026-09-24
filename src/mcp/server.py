@@ -274,4 +274,6 @@ def check_policy_compliance(
 # ── Entry point ──────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http", host="0.0.0.0", port=PORT)
+    import anyio
+    print(f"Starting Acme Corp HR MCP Server on http://127.0.0.1:{PORT}/mcp")
+    anyio.run(lambda: mcp.run_streamable_http_async(host="127.0.0.1", port=PORT))

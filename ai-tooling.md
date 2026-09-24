@@ -34,11 +34,13 @@ Claude Code generated the full conversion script that converts `.md` policy file
 fpdf.errors.FPDFException: Not enough horizontal space to render a single character
 ```
 
-This occurred on long unbreakable tokens (URLs, hyphenated strings) in several policy documents. Claude diagnosed the root cause correctly — fpdf2's default `WORD` wrap mode cannot break tokens with no whitespace — and fixed it by adding `wrapmode="CHAR"` to all `multi_cell` calls. The fix was correct and required no additional iteration.
+This occurred on long unbreakable tokens (URLs, hyphenated strings) in several policy documents. Claude diagnosed the root cause correctly — fpdf2's default `WORD` wrap mode cannot break tokens with no whitespace — and proposed `wrapmode="CHAR"` as a fix. The fix silenced the error but introduced a severe regression: the script hung for 17+ minutes on a single document due to fpdf2's character-level layout loop on long paragraphs.
 
-**What worked well:** The overall script structure, the markdown-to-HTML conversion using the `markdown` library, and the txt stripping logic using regex were all solid on first generation. Claude also correctly identified that `fpdf2` was the right choice over `weasyprint` for free-tier compatibility (no system binary dependency).
+**Final fix:** Replaced `fpdf2` entirely with `reportlab`, using `SimpleDocTemplate` + `Paragraph` flowables. A helper `_md_to_story()` maps markdown heading and list syntax to reportlab styles. All 5 PDFs now generate in under 5 seconds. The switch required discovering the regression at runtime — static generation cannot anticipate performance cliffs in library internals.
 
-**What needed correction:** The `wrapmode="CHAR"` fix was required after a runtime error — this is a library-specific gotcha that required running the code to discover. Claude could not have known about it statically.
+**What worked well:** The overall script structure, the markdown-to-HTML conversion using the `markdown` library, and the txt stripping logic using regex were all solid on first generation.
+
+**What needed correction:** Two iterations were required for the PDF path: first the `FPDFException`, then the `wrapmode="CHAR"` hang. Both required running the code to observe — neither was statically predictable.
 
 ---
 
@@ -47,6 +49,16 @@ This occurred on long unbreakable tokens (URLs, hyphenated strings) in several p
 The 7 MCP tool schemas (input/output JSON Schema definitions) were generated with Claude Code. All field types, enums, required arrays, and descriptions were produced in one pass and required no structural corrections.
 
 **What worked well:** Claude correctly applied JSON Schema conventions (`"type": "object"`, `"required": []`, `enum` constraints) and added sensible descriptions to every field — detail that is easy to skip when writing by hand but important for the MCP client's tool-discovery behaviour.
+
+---
+
+### MCP Server Implementation (`src/mcp/server.py`)
+
+Claude Code generated the full MCP server in one pass, using `FastMCP` from the `mcp` Python SDK. The tool logic — embedding-backed retrieval for `search_policy_documents` and `get_policy_section`, JSON file reads for the employee data tools, in-memory dict for `create_mock_hr_ticket`, and the prohibition-keyword heuristic for `check_policy_compliance` — was wired correctly on the first generation.
+
+**What needed correction — mcp 2.x API change discovered at runtime:** The generated code used `from mcp.server.fastmcp import FastMCP`, which is the mcp 1.x API. The installed package was mcp 2.x, where `FastMCP` was renamed to `MCPServer` (`from mcp.server.mcpserver import MCPServer`). The error message was clear and the fix was a one-line import change. This is a representative example of a library version mismatch that is impossible to detect statically — the correct fix required running the code.
+
+**What worked well:** The lazy singleton pattern for the employees dict (mirroring the existing pattern in `retrieval.py`) was applied correctly without prompting. The tool docstrings, which the MCP SDK uses as tool descriptions for the client, were accurate and informative on first generation. The 25-check `scripts/test_mcp.py` test suite was also generated in one pass and all checks passed immediately.
 
 ---
 
