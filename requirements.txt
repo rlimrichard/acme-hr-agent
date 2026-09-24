@@ -7,3 +7,7 @@ pypdf>=4.0.0
 # policy format conversion (scripts/convert_policies.py)
 markdown>=3.6
 reportlab>=4.0.0
+# MCP server + web app
+mcp>=1.2.0
+uvicorn>=0.30.0
+fastapi>=0.111.0

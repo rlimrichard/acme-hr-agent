@@ -36,10 +36,14 @@ jobs:
 
       - name: Import check
         run: |
-          python -c "from src.rag.ingest import load_and_chunk_policies, build_chroma_collection; print('imports ok')"
+          python -c "from src.rag.ingest import load_and_chunk_policies, build_chroma_collection; print('rag imports ok')"
+          python -c "from src.mcp.server import mcp; print('mcp imports ok')"
 
       - name: Build ChromaDB index
         run: python -m src.rag.ingest
 
       - name: Run RAG diagnostic tests
         run: python scripts/test_rag.py
+
+      - name: Run MCP tool smoke tests
+        run: python scripts/test_mcp.py
