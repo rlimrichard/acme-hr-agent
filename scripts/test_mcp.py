@@ -13,6 +13,7 @@ from src.mcp.server import (
     check_policy_compliance,
     check_pto_balance,
     create_mock_hr_ticket,
+    draft_hr_email,
     get_policy_section,
     lookup_benefits_status,
     lookup_employee_profile,
@@ -90,10 +91,53 @@ def test_ticket_tool() -> bool:
     return all(results)
 
 
-# ── 3. RAG-backed tools ───────────────────────────────────────────────────────
+# ── 3. draft_hr_email ────────────────────────────────────────────────────────
+
+def test_draft_hr_email() -> bool:
+    print("\n=== 3. draft_hr_email ===")
+    results = []
+
+    # PTO request — routes to manager
+    draft = draft_hr_email(
+        "EMP-001", "pto_request",
+        "I would like to request 5 days off for a family vacation.",
+        "2025-12-22", "2025-12-26",
+    )
+    results.append(check("draft_only=True always", draft["draft_only"] is True))
+    results.append(check("PTO request addressed to manager",
+                         "okafor" in draft["to"],          # EMP-001's manager is David Okafor
+                         draft.get("to")))
+    results.append(check("subject includes dates",
+                         "2025-12-22" in draft["subject"] or "PTO" in draft["subject"],
+                         draft.get("subject")))
+    results.append(check("body contains employee name", "Sarah Chen" in draft["body"]))
+    results.append(check("body contains details",
+                         "family vacation" in draft["body"]))
+    results.append(check("cc is people-ops",
+                         draft["cc"] == "people-ops@acmecorp.com"))
+
+    # Remote work request
+    draft2 = draft_hr_email(
+        "EMP-002", "remote_work_request",
+        "I would like to work remotely from Spain for 6 weeks.",
+        "2025-11-01", "2025-12-13",
+    )
+    results.append(check("remote_work routes to manager", "@acmecorp.com" in draft2["to"]))
+    results.append(check("subject contains Remote Work", "Remote Work" in draft2["subject"]))
+
+    # Unknown employee — graceful fallback
+    draft3 = draft_hr_email("EMP-999", "general", "I have a general question.")
+    results.append(check("unknown employee: no crash", "draft_only" in draft3))
+    results.append(check("unknown employee: to is people-ops",
+                         draft3["to"] == "people-ops@acmecorp.com"))
+
+    return all(results)
+
+
+# ── 4. RAG-backed tools ───────────────────────────────────────────────────────
 
 def test_rag_tools() -> bool:
-    print("\n=== 3. RAG-Backed Tools ===")
+    print("\n=== 4. RAG-Backed Tools ===")
     results = []
 
     # search_policy_documents — basic
@@ -140,6 +184,7 @@ def main() -> int:
     results = [
         test_employee_tools(),
         test_ticket_tool(),
+        test_draft_hr_email(),
         test_rag_tools(),
     ]
 

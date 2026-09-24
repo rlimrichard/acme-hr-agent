@@ -27,7 +27,7 @@
 │    MCP Server        │    │     LLM Provider          │
 │  localhost:8001      │    │  (Claude / OpenRouter)    │
 │                      │    └──────────────────────────┘
-│  7 tools exposed     │
+│  8 tools exposed     │
 │  ┌────────────────┐  │
 │  │ RAG tools (2)  │──┼──► ChromaDB (local, persistent)
 │  │                │  │    20 policy docs, 638 chunks
@@ -148,9 +148,10 @@ Expected tool-call sequence:
 2. `check_pto_balance(employee_id)` → confirms available days
 3. `search_policy_documents("PTO request approval blackout periods")` → retrieves approval requirements, blackout windows
 4. `check_policy_compliance(employee_id, "take 5 days PTO starting next Monday")` → compliance verdict with citations
-5. *(if user confirms)* `create_mock_hr_ticket(employee_id, type="pto_request", ...)` → mock ticket created
+5. `draft_hr_email(employee_id, "pto_request", ...)` → personalised manager approval request drafted
+6. *(if user confirms)* `create_mock_hr_ticket(employee_id, type="pto_request", ...)` → mock ticket created
 
-**Expected final response:** Grounded answer citing `[POL-PTO-002 § 3.1 Requesting Time Off]` with the employee's balance, approval instructions, and ticket ID.
+**Expected final response:** Grounded answer citing `[POL-PTO-002 § 3.1 Requesting Time Off]` with the employee's balance, approval instructions, the drafted email, and ticket ID.
 
 ---
 
@@ -183,7 +184,7 @@ python -m src.mcp.server
 
 **Tool discovery:** The agent client sends `{"method": "tools/list"}` via `POST /mcp` on startup (standard MCP JSON-RPC 2.0). This satisfies the MCP tool-discovery requirement without hard-coding tool names in the orchestrator.
 
-**7 tools implemented:**
+**8 tools implemented:**
 
 | Tool | Data Source | Key behaviour |
 |------|-------------|---------------|
@@ -194,6 +195,7 @@ python -m src.mcp.server
 | `lookup_benefits_status` | `data/employees.json` | Health plan, dental, vision, FSA/HSA, 401k contribution + match |
 | `create_mock_hr_ticket` | In-memory dict | Generates `TKT-xxxxxxxx` ID; routes to team email by `ticket_type`; requires explicit confirmation |
 | `check_policy_compliance` | RAG + `data/employees.json` | Retrieves top-5 policy chunks; runs prohibition-keyword heuristic on best match; returns `compliant: bool` + `citations` array |
+| `draft_hr_email` | `data/employees.json` | Generates a personalised email draft; resolves manager from employee record; `draft_only: true` always — never sends |
 
 **Compliance heuristic detail:** `check_policy_compliance` applies a conservative rule — `compliant: false` only when the best-matching chunk has cosine distance < 0.30 (strong semantic match) AND contains an explicit prohibition keyword (`"prohibited"`, `"must not"`, `"not permitted"`, etc.). This avoids false positives from tangentially related policy text. The agent layer synthesises the final answer from the returned citations.
 

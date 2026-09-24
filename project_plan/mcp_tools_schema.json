@@ -185,6 +185,33 @@
           "conditions": { "type": "string", "description": "Any conditions or limits that apply" }
         }
       }
+    },
+    {
+      "name": "draft_hr_email",
+      "description": "Draft a professional HR email (PTO request, remote work approval, expense reimbursement, etc.). Always returns a DRAFT — never sends.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "employee_id": { "type": "string", "description": "e.g. 'EMP-001'" },
+          "email_type":  { "type": "string", "enum": ["pto_request", "remote_work_request", "expense_approval", "accommodation_request", "general"] },
+          "details":     { "type": "string", "description": "Free-text body content to include in the email" },
+          "start_date":  { "type": "string", "format": "date", "description": "Optional: start date (for PTO or remote work requests)" },
+          "end_date":    { "type": "string", "format": "date", "description": "Optional: end date" }
+        },
+        "required": ["employee_id", "email_type", "details"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "draft_only":  { "type": "boolean", "description": "Always true — this tool never sends email" },
+          "to":          { "type": "string", "description": "Recipient email address (manager or HR team)" },
+          "cc":          { "type": "string" },
+          "subject":     { "type": "string" },
+          "body":        { "type": "string" },
+          "from_name":   { "type": "string" },
+          "from_email":  { "type": "string" }
+        }
+      }
     }
   ]
 }

@@ -1,5 +1,5 @@
 """
-Acme Corp HR MCP Server — 7 tools via Streamable HTTP on localhost:8001.
+Acme Corp HR MCP Server — 8 tools via Streamable HTTP on localhost:8001.
 
 Run:
     python -m src.mcp.server
@@ -268,6 +268,120 @@ def check_policy_compliance(
         ),
         "citations":  citations,
         "conditions": conditions,
+    }
+
+
+# ── Tool 8: draft_hr_email ───────────────────────────────────────────────────
+
+_EMAIL_TO = {
+    "pto_request":           "manager",
+    "remote_work_request":   "manager",
+    "expense_approval":      "people-ops@acmecorp.com",
+    "accommodation_request": "accessibility@acmecorp.com",
+    "general":               "people-ops@acmecorp.com",
+}
+
+_EMAIL_SUBJECTS = {
+    "pto_request":           "PTO Request",
+    "remote_work_request":   "Remote Work Approval Request",
+    "expense_approval":      "Expense Reimbursement Request",
+    "accommodation_request": "Workplace Accommodation Request",
+    "general":               "HR Inquiry",
+}
+
+_EMAIL_INTROS = {
+    "pto_request": (
+        "I am writing to formally request time off from work. "
+        "Please find the details of my request below."
+    ),
+    "remote_work_request": (
+        "I am writing to request approval for a remote work arrangement. "
+        "Please find the details below."
+    ),
+    "expense_approval": (
+        "I am submitting a request for expense reimbursement. "
+        "Please find the details of the expenditure below."
+    ),
+    "accommodation_request": (
+        "I am writing to request a workplace accommodation. "
+        "Please find the details of my request below."
+    ),
+    "general": (
+        "I am writing to the People Operations team with the following inquiry."
+    ),
+}
+
+
+def _name_to_email(name: str) -> str:
+    """Derive an Acme Corp email from a full name, e.g. 'David Okafor' → 'd.okafor@acmecorp.com'."""
+    parts = name.lower().split()
+    return f"{parts[0][0]}.{parts[-1]}@acmecorp.com"
+
+
+@mcp.tool()
+def draft_hr_email(
+    employee_id: str,
+    email_type: str,
+    details: str,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> dict[str, Any]:
+    """Draft a professional HR email (PTO request, remote work approval, expense reimbursement, etc.).
+    Always returns a DRAFT — never sends. Supported email_type values: pto_request,
+    remote_work_request, expense_approval, accommodation_request, general."""
+    employees = _get_employees()
+    emp = employees.get(employee_id)
+
+    sender_name  = emp["name"]        if emp else f"Employee {employee_id}"
+    sender_role  = emp["role"]        if emp else "Unknown Role"
+    sender_dept  = emp["department"]  if emp else "Unknown Department"
+    manager_id   = emp.get("manager_id") if emp else None
+    manager      = employees.get(manager_id) if manager_id else None
+    manager_name = manager["name"] if manager else "People Operations Team"
+
+    # Resolve recipient
+    to_target = _EMAIL_TO.get(email_type, "people-ops@acmecorp.com")
+    if to_target == "manager":
+        to_addr = _name_to_email(manager_name) if manager else "people-ops@acmecorp.com"
+        salutation = f"Hi {manager_name.split()[0]},"
+    else:
+        to_addr    = to_target
+        salutation = "Dear People Operations Team,"
+
+    # Build date clause
+    date_clause = ""
+    if start_date and end_date and start_date != end_date:
+        date_clause = f" from {start_date} to {end_date}"
+    elif start_date:
+        date_clause = f" on {start_date}"
+
+    base_subject = _EMAIL_SUBJECTS.get(email_type, "HR Inquiry")
+    subject      = f"{base_subject}{date_clause}" if date_clause else base_subject
+    intro        = _EMAIL_INTROS.get(email_type, _EMAIL_INTROS["general"])
+
+    body = f"""{salutation}
+
+{intro}
+
+{details}
+
+Please let me know if you require any additional information or documentation.
+
+Thank you for your time and consideration.
+
+Best regards,
+{sender_name}
+{sender_role}, {sender_dept}
+"""
+
+    return {
+        "draft_only":  True,
+        "to":          to_addr,
+        "cc":          "people-ops@acmecorp.com",
+        "subject":     subject,
+        "body":        body.strip(),
+        "from_name":   sender_name,
+        "from_email":  _name_to_email(sender_name) if emp else f"{employee_id.lower()}@acmecorp.com",
     }
 
 

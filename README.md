@@ -166,6 +166,7 @@ curl -X POST http://localhost:8001/mcp \
 | `lookup_benefits_status` | Benefits elections (health, dental, vision, FSA/HSA, 401k) |
 | `create_mock_hr_ticket` | Create a mock service ticket; type-based routing; returns ticket ID |
 | `check_policy_compliance` | RAG search + prohibition heuristic → `compliant: bool` + citations |
+| `draft_hr_email` | Personalised email draft (PTO request, remote work, expense, etc.); `draft_only: true` always |
 
 ---
 
