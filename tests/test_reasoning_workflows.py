@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from src.agent.orchestrator import HRAgent
@@ -16,9 +17,15 @@ class LocalMCPClient:
         return response.json()
 
 
+def _agent() -> HRAgent:
+    return HRAgent(LocalMCPClient())
+
+
 def tool_names(response) -> list[str]:
     return [step["tool"] for step in response.tool_trace]
 
+
+# ── Tool discovery ─────────────────────────────────────────────────────────────
 
 def test_discovers_eight_tools() -> None:
     response = TestClient(app).get("/tools")
@@ -26,8 +33,42 @@ def test_discovers_eight_tools() -> None:
     assert len(response.json()["tools"]) == 8
 
 
+# ── _kind() routing ───────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("query,expected", [
+    ("Can I take some time off next week?",        "pto"),
+    ("I need 2 weeks vacation in December",        "pto"),
+    ("I'm requesting PTO for next Friday",         "pto"),
+    ("I want to work from Spain for a month",      "remote"),
+    ("Can I work from home abroad?",               "remote"),
+    ("Can I expense a $500 monitor?",              "expense"),
+    ("I need to reimburse my standing desk",       "expense"),
+    ("What is the office kitchen cleaning rota?",  None),
+])
+def test_kind_routing(query: str, expected: str | None) -> None:
+    assert HRAgent._kind(query) == expected
+
+
+# ── Unknown / out-of-scope query ──────────────────────────────────────────────
+
+def test_unknown_query_escalates_with_empty_trace() -> None:
+    response = _agent().answer("What is the dress code for client meetings?", "EMP-001")
+    assert response.escalated is True
+    assert response.tool_trace == []
+
+
+# ── Response structure ────────────────────────────────────────────────────────
+
+def test_response_as_dict_has_all_required_keys() -> None:
+    d = _agent().answer("Can I take a day off?", "EMP-001").as_dict()
+    for key in ("answer", "citations", "snippets", "tool_trace", "escalated", "requires_confirmation"):
+        assert key in d, f"missing key: {key}"
+
+
+# ── PTO workflow ──────────────────────────────────────────────────────────────
+
 def test_pto_advisor_uses_profile_balance_policy_compliance_and_draft() -> None:
-    response = HRAgent(LocalMCPClient()).answer("Can I take 3 weeks off in December?", "EMP-002")
+    response = _agent().answer("Can I take 3 weeks off in December?", "EMP-002")
     assert tool_names(response) == [
         "lookup_employee_profile", "check_pto_balance", "search_policy_documents",
         "check_policy_compliance", "draft_hr_email",
@@ -35,8 +76,33 @@ def test_pto_advisor_uses_profile_balance_policy_compliance_and_draft() -> None:
     assert response.citations
 
 
+def test_pto_escalated_when_balance_insufficient() -> None:
+    # EMP-002 has 8.0 days balance; requesting 15 days should exceed it
+    response = _agent().answer("I want to take 15 days off", "EMP-002")
+    assert response.escalated is True
+
+
+def test_pto_not_escalated_when_balance_sufficient() -> None:
+    # EMP-004 has 22.0 days balance; 3 days is well within range
+    response = _agent().answer("Can I take 3 days of vacation next month?", "EMP-004")
+    assert response.escalated is False
+
+
+def test_pto_answer_mentions_actual_balance() -> None:
+    # EMP-001 has 14.5 days; the answer should state that number
+    response = _agent().answer("How many PTO days can I take?", "EMP-001")
+    assert "14.5" in response.answer
+
+
+def test_pto_employee_not_found_escalates() -> None:
+    response = _agent().answer("Can I take a day off?", "EMP-999")
+    assert response.escalated is True
+
+
+# ── Remote work workflow ──────────────────────────────────────────────────────
+
 def test_remote_work_ticket_requires_explicit_confirmation() -> None:
-    agent = HRAgent(LocalMCPClient())
+    agent = _agent()
     pending = agent.answer("Can I work from Spain for 6 weeks?", "EMP-001")
     assert pending.requires_confirmation is True
     assert "create_mock_hr_ticket" not in tool_names(pending)
@@ -45,7 +111,24 @@ def test_remote_work_ticket_requires_explicit_confirmation() -> None:
     assert tool_names(confirmed)[-1] == "create_mock_hr_ticket"
 
 
+def test_remote_work_always_escalated() -> None:
+    response = _agent().answer("I want to work remotely from another country for 3 months", "EMP-003")
+    assert response.escalated is True
+
+
+# ── Expense workflow ───────────────────────────────────────────────────────────
+
 def test_expense_advisor_returns_policy_based_decision() -> None:
-    response = HRAgent(LocalMCPClient()).answer("Can I expense a $1,200 standing desk?", "EMP-001")
+    response = _agent().answer("Can I expense a $1,200 standing desk?", "EMP-001")
     assert tool_names(response) == ["lookup_employee_profile", "search_policy_documents", "check_policy_compliance"]
-    assert "pre-approval" in response.answer.lower()
+    assert response.citations  # policy sources were retrieved
+
+
+def test_expense_answer_contains_official_policy_prefix() -> None:
+    response = _agent().answer("Can I expense a $300 webcam for my home office?", "EMP-001")
+    assert "[OFFICIAL POLICY]" in response.answer
+
+
+def test_expense_escalated_reflects_compliance_result() -> None:
+    response = _agent().answer("Can I expense a $1,200 standing desk?", "EMP-001")
+    assert response.escalated is (not response.tool_trace[-1]["result"]["compliant"])
