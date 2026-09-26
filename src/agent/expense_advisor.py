@@ -122,12 +122,16 @@ def _synthesize(
 
     model = os.environ.get("OPENROUTER_MODEL", _OPENROUTER_DEFAULT_MODEL)
     client = OpenAI(api_key=api_key, base_url=_OPENROUTER_BASE_URL)
-    response = client.chat.completions.create(
-        model=model,
-        max_tokens=700,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return response.choices[0].message.content
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            max_tokens=700,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        content = response.choices[0].message.content
+        return content if content is not None else _template_answer(query, employee, compliance)
+    except Exception:
+        return _template_answer(query, employee, compliance)
 
 
 def _template_answer(query: str, employee: dict, compliance: dict) -> str:

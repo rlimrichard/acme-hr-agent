@@ -119,12 +119,31 @@ class HRAgent:
         return response
 
     def _expense(self, query: str, employee_id: str) -> AgentResponse:
-        response = AgentResponse(answer="")
-        profile = self._invoke(response, "lookup_employee_profile", employee_id=employee_id)
-        policies = self._invoke(response, "search_policy_documents", query="expense reimbursement home office equipment approval limits", top_k=5)
-        compliance = self._invoke(response, "check_policy_compliance", employee_id=employee_id, action=query,
-                                  context=f"role: {profile.get('role', 'unknown')}; remote status: {profile.get('remote_status', 'unknown')}")
-        self._sources(response, policies["chunks"])
-        response.answer = f"[OFFICIAL POLICY] {compliance['verdict']} {compliance['conditions']} Review the cited expense and equipment-policy snippets before making a purchase."
-        response.escalated = not compliance["compliant"]
-        return response
+        from src.agent.expense_advisor import run as _expense_run
+        result = _expense_run(employee_id, query)
+
+        # Normalise tool_trace to orchestrator format (input/output → args/result)
+        tool_trace = [
+            {"step": e["step"], "tool": e["tool"],
+             "args": e.get("input", {}), "result": e.get("output", {})}
+            for e in result.get("tool_trace", [])
+        ]
+
+        # Parse "[DOC-ID § Section]" citation strings into dicts
+        citations: list[dict[str, str]] = []
+        snippets:  list[dict[str, str]] = []
+        seen: set[str] = set()
+        for raw in result.get("citations", []):
+            m = re.match(r"\[([^\s]+)\s*§\s*(.+?)\]", raw)
+            if m and raw not in seen:
+                seen.add(raw)
+                citations.append({"doc_id": m.group(1), "doc_title": "", "section": m.group(2)})
+                snippets.append({"doc_id": m.group(1), "section": m.group(2), "text": ""})
+
+        return AgentResponse(
+            answer=result["answer"],
+            citations=citations,
+            snippets=snippets,
+            tool_trace=tool_trace,
+            escalated=not result.get("compliant", True),
+        )
