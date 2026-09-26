@@ -265,7 +265,7 @@ See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 The app is deployed on Render (free tier). A single service runs the web app, agent, MCP server, and ChromaDB.
 
-**Live URL:** *(added to `deployed.md` once deployed)*
+**Live URL:** https://acme-hr-agent.onrender.com
 
 **Build command (Render):**
 ```bash

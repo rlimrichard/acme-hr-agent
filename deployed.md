@@ -8,9 +8,9 @@ Render (free tier) — single web service.
 
 | Endpoint | URL |
 |---|---|
-| Application | *(to be filled after deploy)* |
-| Health check | *(to be filled after deploy)*/health |
-| Chat API | *(to be filled after deploy)*/chat |
+| Application | https://acme-hr-agent.onrender.com |
+| Health check | https://acme-hr-agent.onrender.com/health |
+| Chat API | https://acme-hr-agent.onrender.com/chat |
 
 ## Architecture (single service)
 
