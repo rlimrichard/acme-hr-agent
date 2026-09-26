@@ -37,6 +37,13 @@ async def lifespan(app: FastAPI):
                 break
             except httpx.HTTPError:
                 time.sleep(0.5)
+    # Pre-warm the embedding model and ChromaDB so the first /chat request is fast
+    try:
+        from src.mcp.server import search_policy_documents
+        search_policy_documents("warmup", top_k=1)
+    except Exception:
+        pass  # non-fatal — warmup failure doesn't block startup
+
     yield
     if _mcp_proc is not None:
         _mcp_proc.terminate()
@@ -59,8 +66,14 @@ def health() -> dict[str, Any]:
         connected = tool_count >= 5
     except httpx.HTTPError:
         tool_count, connected = 0, False
+    try:
+        from src.rag.retrieval import _collection
+        chroma_loaded = _collection is not None
+        doc_count = _collection.count() if chroma_loaded else 0
+    except Exception:
+        chroma_loaded, doc_count = False, 0
     return {"status": "ok" if connected else "degraded", "mcp_connected": connected,
-            "chroma_loaded": False, "doc_count": 0, "tool_count": tool_count, "version": app.version}
+            "chroma_loaded": chroma_loaded, "doc_count": doc_count, "tool_count": tool_count, "version": app.version}
 
 
 @app.post("/chat")
