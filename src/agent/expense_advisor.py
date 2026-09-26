@@ -73,6 +73,10 @@ RULES (follow strictly)
 EMPLOYEE QUESTION: {query}"""
 
 
+_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+_OPENROUTER_DEFAULT_MODEL = "anthropic/claude-haiku-4-5"
+
+
 def _synthesize(
     query: str,
     employee: dict,
@@ -80,13 +84,13 @@ def _synthesize(
     section: dict,
     compliance: dict,
 ) -> str:
-    """Call Claude for the final answer; fall back to a structured template if no key."""
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    """Call an LLM via OpenRouter; fall back to a structured template if no key."""
+    api_key = os.environ.get("OPENROUTER_API_KEY", "")
     if not api_key:
         return _template_answer(query, employee, compliance)
 
     try:
-        import anthropic
+        from openai import OpenAI
     except ImportError:
         return _template_answer(query, employee, compliance)
 
@@ -116,17 +120,18 @@ def _synthesize(
         query=query,
     )
 
-    client = anthropic.Anthropic(api_key=api_key)
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+    model = os.environ.get("OPENROUTER_MODEL", _OPENROUTER_DEFAULT_MODEL)
+    client = OpenAI(api_key=api_key, base_url=_OPENROUTER_BASE_URL)
+    response = client.chat.completions.create(
+        model=model,
         max_tokens=700,
         messages=[{"role": "user", "content": prompt}],
     )
-    return response.content[0].text
+    return response.choices[0].message.content
 
 
 def _template_answer(query: str, employee: dict, compliance: dict) -> str:
-    """Structured fallback when ANTHROPIC_API_KEY is not set."""
+    """Structured fallback when OPENROUTER_API_KEY is not set."""
     name    = employee.get("name", "Employee")
     verdict = compliance.get("verdict", "")
     cites   = compliance.get("citations", [])

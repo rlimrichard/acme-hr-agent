@@ -80,7 +80,7 @@ cp .env.example .env
 Open `.env` and fill in:
 
 ```
-ANTHROPIC_API_KEY=sk-ant-...           # LLM provider key
+OPENROUTER_API_KEY=sk-or-...          # LLM provider key (https://openrouter.ai/keys)
 MCP_SERVER_URL=http://localhost:8001   # MCP server (default for local dev)
 ```
 
