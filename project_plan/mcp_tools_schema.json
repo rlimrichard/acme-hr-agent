@@ -6,11 +6,23 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "query":  { "type": "string",  "description": "Natural language search query" },
-          "top_k":  { "type": "integer", "default": 5, "description": "Number of chunks to return" },
-          "doc_id": { "type": "string",  "description": "Optional: restrict search to one document (e.g. 'POL-PTO-002')" }
+          "query": {
+            "type": "string",
+            "description": "Natural language search query"
+          },
+          "top_k": {
+            "type": "integer",
+            "default": 5,
+            "description": "Number of chunks to return"
+          },
+          "doc_id": {
+            "type": "string",
+            "description": "Optional: restrict search to one document (e.g. 'POL-PTO-002')"
+          }
         },
-        "required": ["query"]
+        "required": [
+          "query"
+        ]
       },
       "outputSchema": {
         "type": "object",
@@ -20,12 +32,24 @@
             "items": {
               "type": "object",
               "properties": {
-                "doc_id":    { "type": "string" },
-                "doc_title": { "type": "string" },
-                "section":   { "type": "string" },
-                "text":      { "type": "string" },
-                "snippet":   { "type": "string" },
-                "score":     { "type": "number" }
+                "doc_id": {
+                  "type": "string"
+                },
+                "doc_title": {
+                  "type": "string"
+                },
+                "section": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "snippet": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number"
+                }
               }
             }
           }
@@ -38,19 +62,38 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "doc_id":  { "type": "string", "description": "Policy document ID, e.g. 'POL-PTO-002'" },
-          "section": { "type": "string", "description": "Section name or breadcrumb, e.g. 'PTO Accrual Rates'" }
+          "doc_id": {
+            "type": "string",
+            "description": "Policy document ID, e.g. 'POL-PTO-002'"
+          },
+          "section": {
+            "type": "string",
+            "description": "Section name or breadcrumb, e.g. 'PTO Accrual Rates'"
+          }
         },
-        "required": ["doc_id", "section"]
+        "required": [
+          "doc_id",
+          "section"
+        ]
       },
       "outputSchema": {
         "type": "object",
         "properties": {
-          "doc_id":    { "type": "string" },
-          "doc_title": { "type": "string" },
-          "section":   { "type": "string" },
-          "text":      { "type": "string" },
-          "found":     { "type": "boolean" }
+          "doc_id": {
+            "type": "string"
+          },
+          "doc_title": {
+            "type": "string"
+          },
+          "section": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "found": {
+            "type": "boolean"
+          }
         }
       }
     },
@@ -60,23 +103,111 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "employee_id": { "type": "string", "description": "e.g. 'EMP-001'" }
+          "employee_id": {
+            "type": "string",
+            "description": "e.g. 'EMP-001'"
+          }
         },
-        "required": ["employee_id"]
+        "required": [
+          "employee_id"
+        ]
       },
       "outputSchema": {
         "type": "object",
         "properties": {
-          "employee_id":      { "type": "string" },
-          "name":             { "type": "string" },
-          "role":             { "type": "string" },
-          "department":       { "type": "string" },
-          "office_location":  { "type": "string" },
-          "remote_status":    { "type": "string", "enum": ["remote", "hybrid", "office-first"] },
-          "hire_date":        { "type": "string", "format": "date" },
-          "manager_id":       { "type": "string" },
-          "years_of_service": { "type": "number" },
-          "found":            { "type": "boolean" }
+          "employee_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "office_location": {
+            "type": "string"
+          },
+          "remote_status": {
+            "type": "string",
+            "enum": [
+              "remote",
+              "hybrid",
+              "office-first"
+            ]
+          },
+          "hire_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "manager_id": {
+            "type": "string"
+          },
+          "years_of_service": {
+            "type": "number"
+          },
+          "found": {
+            "type": "boolean"
+          },
+          "pto_balance_days": {
+            "type": "number"
+          },
+          "pending_pto_requests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "start_date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "end_date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "days": {
+                  "type": "number"
+                },
+                "status": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "benefits_election": {
+            "type": "object",
+            "properties": {
+              "health_plan": {
+                "type": "string"
+              },
+              "dental": {
+                "type": "boolean"
+              },
+              "vision": {
+                "type": "boolean"
+              },
+              "fsa_enrolled": {
+                "type": "boolean"
+              },
+              "hsa_enrolled": {
+                "type": "boolean"
+              },
+              "401k_percent": {
+                "type": "number"
+              },
+              "401k_employer_match_pct": {
+                "type": "number"
+              },
+              "life_insurance": {
+                "type": "string"
+              },
+              "commuter_benefit": {
+                "type": "boolean"
+              }
+            }
+          }
         }
       }
     },
@@ -86,28 +217,53 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "employee_id": { "type": "string" }
+          "employee_id": {
+            "type": "string"
+          }
         },
-        "required": ["employee_id"]
+        "required": [
+          "employee_id"
+        ]
       },
       "outputSchema": {
         "type": "object",
         "properties": {
-          "employee_id":          { "type": "string" },
-          "pto_balance_days":     { "type": "number" },
+          "employee_id": {
+            "type": "string"
+          },
+          "pto_balance_days": {
+            "type": "number"
+          },
           "pending_pto_requests": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
-                "start_date": { "type": "string", "format": "date" },
-                "end_date":   { "type": "string", "format": "date" },
-                "days":       { "type": "number" },
-                "status":     { "type": "string", "enum": ["pending", "approved", "denied"] }
+                "start_date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "end_date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "days": {
+                  "type": "number"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "approved",
+                    "denied"
+                  ]
+                }
               }
             }
           },
-          "found": { "type": "boolean" }
+          "found": {
+            "type": "boolean"
+          }
         }
       }
     },
@@ -117,25 +273,43 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "employee_id": { "type": "string" }
+          "employee_id": {
+            "type": "string"
+          }
         },
-        "required": ["employee_id"]
+        "required": [
+          "employee_id"
+        ]
       },
       "outputSchema": {
         "type": "object",
         "properties": {
-          "employee_id": { "type": "string" },
+          "employee_id": {
+            "type": "string"
+          },
           "benefits_election": {
             "type": "object",
             "properties": {
-              "health_plan":  { "type": "string" },
-              "dental":       { "type": "boolean" },
-              "vision":       { "type": "boolean" },
-              "fsa_enrolled": { "type": "boolean" },
-              "401k_percent": { "type": "number" }
+              "health_plan": {
+                "type": "string"
+              },
+              "dental": {
+                "type": "boolean"
+              },
+              "vision": {
+                "type": "boolean"
+              },
+              "fsa_enrolled": {
+                "type": "boolean"
+              },
+              "401k_percent": {
+                "type": "number"
+              }
             }
           },
-          "found": { "type": "boolean" }
+          "found": {
+            "type": "boolean"
+          }
         }
       }
     },
@@ -145,22 +319,60 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "employee_id":          { "type": "string" },
-          "ticket_type":          { "type": "string", "enum": ["pto_request", "benefits_change", "policy_question", "accommodation_request", "general_inquiry"] },
-          "subject":              { "type": "string" },
-          "description":          { "type": "string" },
-          "requested_start_date": { "type": "string", "format": "date" },
-          "requested_end_date":   { "type": "string", "format": "date" }
+          "employee_id": {
+            "type": "string"
+          },
+          "ticket_type": {
+            "type": "string",
+            "enum": [
+              "pto_request",
+              "benefits_change",
+              "policy_question",
+              "accommodation_request",
+              "general_inquiry"
+            ]
+          },
+          "subject": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "requested_start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "requested_end_date": {
+            "type": "string",
+            "format": "date"
+          }
         },
-        "required": ["employee_id", "ticket_type", "subject", "description"]
+        "required": [
+          "employee_id",
+          "ticket_type",
+          "subject",
+          "description"
+        ]
       },
       "outputSchema": {
         "type": "object",
         "properties": {
-          "ticket_id":   { "type": "string" },
-          "status":      { "type": "string", "enum": ["created"] },
-          "created_at":  { "type": "string", "format": "date-time" },
-          "assigned_to": { "type": "string" }
+          "ticket_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "created"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "assigned_to": {
+            "type": "string"
+          }
         }
       }
     },
@@ -170,46 +382,112 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "employee_id": { "type": "string" },
-          "action":      { "type": "string", "description": "The action to evaluate, e.g. 'expense a $300 home office chair'" },
-          "context":     { "type": "string", "description": "Additional context, e.g. 'employee is fully remote'" }
+          "employee_id": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "description": "The action to evaluate, e.g. 'expense a $300 home office chair'"
+          },
+          "context": {
+            "type": "string",
+            "description": "Additional context, e.g. 'employee is fully remote'"
+          }
         },
-        "required": ["employee_id", "action"]
+        "required": [
+          "employee_id",
+          "action"
+        ]
       },
       "outputSchema": {
         "type": "object",
         "properties": {
-          "compliant":  { "type": "boolean" },
-          "verdict":    { "type": "string" },
-          "citations":  { "type": "array", "items": { "type": "string" } },
-          "conditions": { "type": "string", "description": "Any conditions or limits that apply" }
+          "compliant": {
+            "type": "boolean"
+          },
+          "verdict": {
+            "type": "string"
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "conditions": {
+            "type": "string",
+            "description": "Any conditions or limits that apply"
+          }
         }
       }
     },
     {
       "name": "draft_hr_email",
-      "description": "Draft a professional HR email (PTO request, remote work approval, expense reimbursement, etc.). Always returns a DRAFT — never sends.",
+      "description": "Draft a professional HR email (PTO request, remote work approval, expense reimbursement, etc.). Always returns a DRAFT \u2014 never sends.",
       "inputSchema": {
         "type": "object",
         "properties": {
-          "employee_id": { "type": "string", "description": "e.g. 'EMP-001'" },
-          "email_type":  { "type": "string", "enum": ["pto_request", "remote_work_request", "expense_approval", "accommodation_request", "general"] },
-          "details":     { "type": "string", "description": "Free-text body content to include in the email" },
-          "start_date":  { "type": "string", "format": "date", "description": "Optional: start date (for PTO or remote work requests)" },
-          "end_date":    { "type": "string", "format": "date", "description": "Optional: end date" }
+          "employee_id": {
+            "type": "string",
+            "description": "e.g. 'EMP-001'"
+          },
+          "email_type": {
+            "type": "string",
+            "enum": [
+              "pto_request",
+              "remote_work_request",
+              "expense_approval",
+              "accommodation_request",
+              "general"
+            ]
+          },
+          "details": {
+            "type": "string",
+            "description": "Free-text body content to include in the email"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Optional: start date (for PTO or remote work requests)"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Optional: end date"
+          }
         },
-        "required": ["employee_id", "email_type", "details"]
+        "required": [
+          "employee_id",
+          "email_type",
+          "details"
+        ]
       },
       "outputSchema": {
         "type": "object",
         "properties": {
-          "draft_only":  { "type": "boolean", "description": "Always true — this tool never sends email" },
-          "to":          { "type": "string", "description": "Recipient email address (manager or HR team)" },
-          "cc":          { "type": "string" },
-          "subject":     { "type": "string" },
-          "body":        { "type": "string" },
-          "from_name":   { "type": "string" },
-          "from_email":  { "type": "string" }
+          "draft_only": {
+            "type": "boolean",
+            "description": "Always true \u2014 this tool never sends email"
+          },
+          "to": {
+            "type": "string",
+            "description": "Recipient email address (manager or HR team)"
+          },
+          "cc": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "from_name": {
+            "type": "string"
+          },
+          "from_email": {
+            "type": "string"
+          }
         }
       }
     }

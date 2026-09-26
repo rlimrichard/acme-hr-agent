@@ -6,7 +6,7 @@
       "role": "Senior Software Engineer",
       "department": "Engineering",
       "office_location": "San Francisco, CA",
-      "remote_status": "Fully Remote",
+      "remote_status": "remote",
       "hire_date": "2021-03-15",
       "manager_id": "EMP-004",
       "pto_balance_days": 14.5,
@@ -31,7 +31,7 @@
       "role": "HR Business Partner",
       "department": "People Operations",
       "office_location": "Austin, TX",
-      "remote_status": "Hybrid",
+      "remote_status": "hybrid",
       "hire_date": "2019-07-01",
       "manager_id": "EMP-005",
       "pto_balance_days": 8.0,
@@ -65,7 +65,7 @@
       "role": "Product Manager",
       "department": "Product",
       "office_location": "New York, NY",
-      "remote_status": "Office-First with Flex Days",
+      "remote_status": "office-first",
       "hire_date": "2023-01-09",
       "manager_id": "EMP-004",
       "pto_balance_days": 4.0,
@@ -90,7 +90,7 @@
       "role": "Engineering Manager",
       "department": "Engineering",
       "office_location": "Chicago, IL",
-      "remote_status": "Hybrid",
+      "remote_status": "hybrid",
       "hire_date": "2017-11-20",
       "manager_id": "EMP-005",
       "pto_balance_days": 22.0,
@@ -115,7 +115,7 @@
       "role": "VP of People & Operations",
       "department": "People Operations",
       "office_location": "San Francisco, CA",
-      "remote_status": "Office-First with Flex Days",
+      "remote_status": "office-first",
       "hire_date": "2015-06-01",
       "manager_id": null,
       "pto_balance_days": 18.5,
@@ -139,6 +139,6 @@
     "generated_date": "2025-09-17",
     "total_employees": 5,
     "company": "Acme Corp",
-    "data_classification": "Confidential — HR Internal Use Only"
+    "data_classification": "Confidential \u2014 HR Internal Use Only"
   }
 }

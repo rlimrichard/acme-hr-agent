@@ -101,6 +101,7 @@ def lookup_employee_profile(employee_id: str) -> dict[str, Any]:
     emp = _get_employees().get(employee_id)
     if not emp:
         return {"employee_id": employee_id, "found": False}
+    b = emp.get("benefits_election", {})
     return {
         "employee_id":      emp["employee_id"],
         "name":             emp["name"],
@@ -111,7 +112,30 @@ def lookup_employee_profile(employee_id: str) -> dict[str, Any]:
         "hire_date":        emp["hire_date"],
         "manager_id":       emp.get("manager_id"),
         "years_of_service": emp["years_of_service"],
-        "found":            True,
+        # PTO — embedded on the record; also available via check_pto_balance
+        "pto_balance_days":      emp["pto_balance_days"],
+        "pending_pto_requests":  [
+            {
+                "start_date": r["start_date"],
+                "end_date":   r["end_date"],
+                "days":       r["days_requested"],
+                "status":     r["status"],
+            }
+            for r in emp.get("pending_pto_requests", [])
+        ],
+        # Benefits — embedded on the record; also available via lookup_benefits_status
+        "benefits_election": {
+            "health_plan":             b.get("health_plan", ""),
+            "dental":                  b.get("dental", False),
+            "vision":                  b.get("vision", False),
+            "fsa_enrolled":            b.get("fsa_enrolled", False),
+            "hsa_enrolled":            b.get("hsa_enrolled", False),
+            "401k_percent":            b.get("401k_contribution_pct", 0),
+            "401k_employer_match_pct": b.get("401k_employer_match_pct", 0),
+            "life_insurance":          b.get("life_insurance", ""),
+            "commuter_benefit":        b.get("commuter_benefit", False),
+        },
+        "found": True,
     }
 
 
