@@ -47,3 +47,6 @@ jobs:
 
       - name: Run MCP tool smoke tests
         run: python scripts/test_mcp.py
+
+      - name: Run orchestrator unit tests
+        run: pytest tests/ -v

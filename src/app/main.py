@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
+import time
+from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx
@@ -12,7 +16,33 @@ from pydantic import BaseModel, Field
 
 from src.agent.orchestrator import HRAgent, MCPClient
 
-app = FastAPI(title="Acme HR Agent", version="0.1.0")
+_mcp_proc: subprocess.Popen | None = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _mcp_proc
+    mcp_url = os.getenv("MCP_SERVER_URL", "http://127.0.0.1:8001")
+    # Only auto-start if pointing at localhost (not an external URL)
+    if "127.0.0.1" in mcp_url or "localhost" in mcp_url:
+        _mcp_proc = subprocess.Popen(
+            [sys.executable, "-m", "src.mcp.server"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        # Give the server up to 10 s to become ready
+        for _ in range(20):
+            try:
+                httpx.get(f"{mcp_url.rstrip('/')}/health", timeout=1)
+                break
+            except httpx.HTTPError:
+                time.sleep(0.5)
+    yield
+    if _mcp_proc is not None:
+        _mcp_proc.terminate()
+
+
+app = FastAPI(title="Acme HR Agent", version="0.1.0", lifespan=lifespan)
 
 
 class ChatRequest(BaseModel):
