@@ -1,65 +1,110 @@
-"""
-Acme Corp HR MCP Server — 8 tools via Streamable HTTP on localhost:8001.
+"""Acme Corp HR tool server.
+
+Exposes all 8 HR tools in two ways:
+  1. As importable Python functions (used by expense_advisor and tests).
+  2. As a FastAPI REST service (used by the agent orchestrator).
+     GET  /tools           — schema discovery
+     POST /tools/{name}    — tool invocation
+     GET  /health          — liveness check
 
 Run:
-    python -m src.mcp.server
+    python -m src.mcp.server          # starts REST server on port 8001
 """
+
+from __future__ import annotations
+
 import json
+import re
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from mcp.server.mcpserver import MCPServer as FastMCP
+from fastapi import FastAPI, HTTPException
 
-from src.rag.retrieval import retrieve_chunks
+# ── Paths ─────────────────────────────────────────────────────────────────────
+_ROOT           = Path(__file__).parents[2]
+_EMPLOYEES_FILE = _ROOT / "data" / "employees.json"
+_SCHEMA_FILE    = _ROOT / "project_plan" / "mcp_tools_schema.json"
+_POLICIES_DIR   = _ROOT / "data" / "policies"
+PORT = 8001
 
-# ── Paths ────────────────────────────────────────────────────────────────────
-_PROJECT_ROOT  = Path(__file__).parent.parent.parent
-EMPLOYEES_FILE = _PROJECT_ROOT / "data" / "employees.json"
-PORT           = 8001
-
-# Keywords that indicate an explicit prohibition in policy text
+# Keywords that trigger a non-compliant verdict when semantically close to the query
 _PROHIBITIONS = {
     "prohibited", "not permitted", "not allowed", "must not",
     "may not", "forbidden", "shall not", "strictly prohibited",
 }
 
-# ── Employee data (lazy singleton) ───────────────────────────────────────────
+# ── Employee data (lazy singleton) ────────────────────────────────────────────
 _employees_by_id: dict[str, dict] | None = None
 
 
 def _get_employees() -> dict[str, dict]:
     global _employees_by_id
     if _employees_by_id is None:
-        raw = json.loads(EMPLOYEES_FILE.read_text(encoding="utf-8"))
+        raw = json.loads(_EMPLOYEES_FILE.read_text(encoding="utf-8"))
         _employees_by_id = {e["employee_id"]: e for e in raw["employees"]}
     return _employees_by_id
 
 
-# ── In-memory ticket store ───────────────────────────────────────────────────
+# ── In-memory ticket store ────────────────────────────────────────────────────
 _tickets: dict[str, dict] = {}
 
-# ── MCP server ───────────────────────────────────────────────────────────────
-mcp = FastMCP(
-    "Acme Corp HR",
-    instructions=(
-        "HR policy assistant tools for Acme Corp. "
-        "Search policies, look up employee data, and create service tickets."
-    ),
-)
+# ── Internal search helpers ───────────────────────────────────────────────────
+
+def _citation_from_path(path: Path) -> tuple[str, str]:
+    text   = path.read_text(encoding="utf-8")
+    doc_id = re.search(r"POL-[A-Z]+-\d+", text)
+    title  = re.search(r"^#\s+(.+)$", text, re.MULTILINE)
+    return (doc_id.group(0) if doc_id else path.stem.upper(),
+            title.group(1)  if title  else path.stem)
 
 
-# ── Tool 1: search_policy_documents ─────────────────────────────────────────
+def _lexical_search(query: str, top_k: int, doc_id: str | None = None) -> list[dict[str, Any]]:
+    """Deterministic keyword fallback used when the Chroma index is unavailable."""
+    terms = {t.lower() for t in re.findall(r"[a-zA-Z]{3,}", query)}
+    matches: list[dict[str, Any]] = []
+    for policy in _POLICIES_DIR.glob("*.md"):
+        pid, title = _citation_from_path(policy)
+        if doc_id and pid != doc_id:
+            continue
+        lines   = policy.read_text(encoding="utf-8").splitlines()
+        section = title
+        for i, line in enumerate(lines):
+            if line.startswith("#"):
+                section = line.lstrip("#").strip()
+            score = sum(t in line.lower() for t in terms)
+            if score:
+                window = " ".join(lines[max(0, i - 1):i + 3]).strip()
+                dist   = max(0.0, 1.0 - score / max(len(terms), 1))
+                matches.append({"doc_id": pid, "doc_title": title, "section": section,
+                                 "text": window, "snippet": window[:180],
+                                 "score": round(1.0 - dist, 4), "distance": dist})
+    return sorted(matches, key=lambda x: x["score"], reverse=True)[:top_k]
 
-@mcp.tool()
+
+def _retrieve(query: str, top_k: int = 5, doc_id: str | None = None) -> list[dict[str, Any]]:
+    """Return chunks with both 'distance' and 'score' present, falling back to lexical search."""
+    try:
+        from src.rag.retrieval import retrieve_chunks
+        chunks = retrieve_chunks(query, top_k=top_k, filter_doc_id=doc_id)
+        for c in chunks:
+            c.setdefault("score", round(1.0 - c.get("distance", 0), 4))
+            c.setdefault("snippet", c["text"][:180])
+        return chunks
+    except Exception:
+        return _lexical_search(query, top_k, doc_id)
+
+
+# ── Tool 1: search_policy_documents ───────────────────────────────────────────
+
 def search_policy_documents(
     query: str,
     top_k: int = 5,
     doc_id: str | None = None,
 ) -> dict[str, Any]:
     """Semantic search across all HR policy documents. Returns ranked chunks with source citations."""
-    chunks = retrieve_chunks(query, top_k=top_k, filter_doc_id=doc_id)
+    chunks = _retrieve(query, top_k=top_k, doc_id=doc_id)
     return {
         "chunks": [
             {
@@ -67,20 +112,19 @@ def search_policy_documents(
                 "doc_title": c["doc_title"],
                 "section":   c["section"],
                 "text":      c["text"],
-                "snippet":   c["snippet"],
-                "score":     round(1.0 - c["distance"], 4),
+                "snippet":   c.get("snippet", c["text"][:180]),
+                "score":     c.get("score", round(1.0 - c.get("distance", 0), 4)),
             }
             for c in chunks
         ]
     }
 
 
-# ── Tool 2: get_policy_section ───────────────────────────────────────────────
+# ── Tool 2: get_policy_section ────────────────────────────────────────────────
 
-@mcp.tool()
 def get_policy_section(doc_id: str, section: str) -> dict[str, Any]:
-    """Retrieve the closest-matching section from a specific policy document by doc_id and section name."""
-    chunks = retrieve_chunks(section, top_k=10, filter_doc_id=doc_id)
+    """Retrieve the closest-matching section from a specific policy document."""
+    chunks = _retrieve(section, top_k=10, doc_id=doc_id)
     if not chunks:
         return {"doc_id": doc_id, "doc_title": "", "section": section, "text": "", "found": False}
     best = chunks[0]
@@ -93,11 +137,14 @@ def get_policy_section(doc_id: str, section: str) -> dict[str, Any]:
     }
 
 
-# ── Tool 3: lookup_employee_profile ─────────────────────────────────────────
+# ── Tool 3: lookup_employee_profile ───────────────────────────────────────────
 
-@mcp.tool()
 def lookup_employee_profile(employee_id: str) -> dict[str, Any]:
-    """Return the full HR profile for an employee by ID (e.g. 'EMP-001')."""
+    """Return the full HR profile for an employee by ID (e.g. 'EMP-001').
+
+    Includes PTO balance, pending requests, and benefits election so callers
+    can get all employee context in a single tool call.
+    """
     emp = _get_employees().get(employee_id)
     if not emp:
         return {"employee_id": employee_id, "found": False}
@@ -112,18 +159,12 @@ def lookup_employee_profile(employee_id: str) -> dict[str, Any]:
         "hire_date":        emp["hire_date"],
         "manager_id":       emp.get("manager_id"),
         "years_of_service": emp["years_of_service"],
-        # PTO — embedded on the record; also available via check_pto_balance
-        "pto_balance_days":      emp["pto_balance_days"],
-        "pending_pto_requests":  [
-            {
-                "start_date": r["start_date"],
-                "end_date":   r["end_date"],
-                "days":       r["days_requested"],
-                "status":     r["status"],
-            }
+        "pto_balance_days": emp["pto_balance_days"],
+        "pending_pto_requests": [
+            {"start_date": r["start_date"], "end_date": r["end_date"],
+             "days": r["days_requested"], "status": r["status"]}
             for r in emp.get("pending_pto_requests", [])
         ],
-        # Benefits — embedded on the record; also available via lookup_benefits_status
         "benefits_election": {
             "health_plan":             b.get("health_plan", ""),
             "dental":                  b.get("dental", False),
@@ -139,9 +180,8 @@ def lookup_employee_profile(employee_id: str) -> dict[str, Any]:
     }
 
 
-# ── Tool 4: check_pto_balance ────────────────────────────────────────────────
+# ── Tool 4: check_pto_balance ─────────────────────────────────────────────────
 
-@mcp.tool()
 def check_pto_balance(employee_id: str) -> dict[str, Any]:
     """Return an employee's current PTO balance and any pending PTO requests."""
     emp = _get_employees().get(employee_id)
@@ -151,21 +191,16 @@ def check_pto_balance(employee_id: str) -> dict[str, Any]:
         "employee_id":      emp["employee_id"],
         "pto_balance_days": emp["pto_balance_days"],
         "pending_pto_requests": [
-            {
-                "start_date": r["start_date"],
-                "end_date":   r["end_date"],
-                "days":       r["days_requested"],
-                "status":     r["status"],
-            }
+            {"start_date": r["start_date"], "end_date": r["end_date"],
+             "days": r["days_requested"], "status": r["status"]}
             for r in emp.get("pending_pto_requests", [])
         ],
         "found": True,
     }
 
 
-# ── Tool 5: lookup_benefits_status ───────────────────────────────────────────
+# ── Tool 5: lookup_benefits_status ────────────────────────────────────────────
 
-@mcp.tool()
 def lookup_benefits_status(employee_id: str) -> dict[str, Any]:
     """Return an employee's current benefits elections (health, dental, vision, FSA/HSA, 401k)."""
     emp = _get_employees().get(employee_id)
@@ -189,7 +224,7 @@ def lookup_benefits_status(employee_id: str) -> dict[str, Any]:
     }
 
 
-# ── Tool 6: create_mock_hr_ticket ────────────────────────────────────────────
+# ── Tool 6: create_mock_hr_ticket ─────────────────────────────────────────────
 
 _ASSIGNEE = {
     "pto_request":           "pto-team@acmecorp.com",
@@ -200,7 +235,6 @@ _ASSIGNEE = {
 }
 
 
-@mcp.tool()
 def create_mock_hr_ticket(
     employee_id: str,
     ticket_type: str,
@@ -211,91 +245,62 @@ def create_mock_hr_ticket(
 ) -> dict[str, Any]:
     """Create a mock HR service ticket. Requires explicit user confirmation before calling."""
     ticket_id   = f"TKT-{uuid.uuid4().hex[:8].upper()}"
-    now         = datetime.now(timezone.utc).isoformat()
+    now         = datetime.now(UTC).isoformat()
     assigned_to = _ASSIGNEE.get(ticket_type, "people-ops@acmecorp.com")
-
     _tickets[ticket_id] = {
-        "ticket_id":            ticket_id,
-        "employee_id":          employee_id,
-        "ticket_type":          ticket_type,
-        "subject":              subject,
-        "description":          description,
-        "requested_start_date": requested_start_date,
-        "requested_end_date":   requested_end_date,
-        "status":               "created",
-        "created_at":           now,
-        "assigned_to":          assigned_to,
+        "ticket_id": ticket_id, "employee_id": employee_id,
+        "ticket_type": ticket_type, "subject": subject, "description": description,
+        "requested_start_date": requested_start_date, "requested_end_date": requested_end_date,
+        "status": "created", "created_at": now, "assigned_to": assigned_to,
     }
-
-    return {
-        "ticket_id":   ticket_id,
-        "status":      "created",
-        "created_at":  now,
-        "assigned_to": assigned_to,
-    }
+    return {"ticket_id": ticket_id, "status": "created", "created_at": now, "assigned_to": assigned_to}
 
 
-# ── Tool 7: check_policy_compliance ──────────────────────────────────────────
+# ── Tool 7: check_policy_compliance ───────────────────────────────────────────
 
-@mcp.tool()
 def check_policy_compliance(
     employee_id: str,
     action: str,
     context: str = "",
 ) -> dict[str, Any]:
-    """Retrieve relevant policy and return a compliance assessment with citations for a proposed action."""
+    """Retrieve relevant policy and return a compliance assessment with citations."""
     emp = _get_employees().get(employee_id)
     emp_details = (
         f" Employee: role={emp['role']}, remote_status={emp['remote_status']}, "
         f"years_of_service={emp['years_of_service']}."
         if emp else ""
     )
-    search_query = f"{action}. {context}.{emp_details}".strip(". ")
+    chunks = _retrieve(f"{action}. {context}.{emp_details}".strip(". "), top_k=5)
 
-    chunks = retrieve_chunks(search_query, top_k=5)
     if not chunks:
-        return {
-            "compliant":  False,
-            "verdict":    "No relevant policy found. Consult People Operations.",
-            "citations":  [],
-            "conditions": "",
-        }
+        return {"compliant": False, "verdict": "No relevant policy found. Consult People Operations.",
+                "citations": [], "conditions": ""}
 
     citations  = [f"[{c['doc_id']} § {c['section']}]" for c in chunks]
     source_ids = ", ".join(dict.fromkeys(c["doc_id"] for c in chunks))
+    top_text   = chunks[0]["text"].lower()
+    best_dist  = chunks[0].get("distance", 1.0)
+    conditions = "; ".join(c.get("snippet", c["text"])[:100] for c in chunks[:2])
 
-    # Prohibition check: only flag as non-compliant when the best match is
-    # semantically close (distance < 0.30) AND contains prohibition language.
-    top_text = chunks[0]["text"].lower()
-    best_dist = chunks[0]["distance"]
-    has_prohibition = best_dist < 0.30 and any(kw in top_text for kw in _PROHIBITIONS)
-
-    conditions = "; ".join(c["snippet"][:100] for c in chunks[:2])
-
-    if has_prohibition:
+    if best_dist < 0.30 and any(kw in top_text for kw in _PROHIBITIONS):
         return {
             "compliant":  False,
-            "verdict":    (
-                f"Policy context from {source_ids} contains explicit restrictions "
-                f"relevant to this action. Review the cited sections or consult "
-                f"People Operations before proceeding."
-            ),
+            "verdict":    (f"Policy context from {source_ids} contains explicit restrictions "
+                           f"relevant to this action. Review the cited sections or consult "
+                           f"People Operations before proceeding."),
             "citations":  citations,
             "conditions": conditions,
         }
-
     return {
         "compliant":  True,
-        "verdict":    (
-            f"No explicit prohibitions found in {source_ids} for this action. "
-            f"Verify the conditions in the cited sections apply to your situation."
-        ),
+        "verdict":    (f"No explicit prohibitions found in {source_ids} for this action. "
+                       f"Verify the conditions in the cited sections apply to your situation."),
         "citations":  citations,
         "conditions": conditions,
     }
 
 
-# ── Tool 8: draft_hr_email ───────────────────────────────────────────────────
+# ── Tool 8: draft_hr_email ────────────────────────────────────────────────────
 
 _EMAIL_TO = {
     "pto_request":           "manager",
@@ -304,7 +309,6 @@ _EMAIL_TO = {
     "accommodation_request": "accessibility@acmecorp.com",
     "general":               "people-ops@acmecorp.com",
 }
-
 _EMAIL_SUBJECTS = {
     "pto_request":           "PTO Request",
     "remote_work_request":   "Remote Work Approval Request",
@@ -312,37 +316,20 @@ _EMAIL_SUBJECTS = {
     "accommodation_request": "Workplace Accommodation Request",
     "general":               "HR Inquiry",
 }
-
 _EMAIL_INTROS = {
-    "pto_request": (
-        "I am writing to formally request time off from work. "
-        "Please find the details of my request below."
-    ),
-    "remote_work_request": (
-        "I am writing to request approval for a remote work arrangement. "
-        "Please find the details below."
-    ),
-    "expense_approval": (
-        "I am submitting a request for expense reimbursement. "
-        "Please find the details of the expenditure below."
-    ),
-    "accommodation_request": (
-        "I am writing to request a workplace accommodation. "
-        "Please find the details of my request below."
-    ),
-    "general": (
-        "I am writing to the People Operations team with the following inquiry."
-    ),
+    "pto_request":           "I am writing to formally request time off from work. Please find the details of my request below.",
+    "remote_work_request":   "I am writing to request approval for a remote work arrangement. Please find the details below.",
+    "expense_approval":      "I am submitting a request for expense reimbursement. Please find the details of the expenditure below.",
+    "accommodation_request": "I am writing to request a workplace accommodation. Please find the details of my request below.",
+    "general":               "I am writing to the People Operations team with the following inquiry.",
 }
 
 
 def _name_to_email(name: str) -> str:
-    """Derive an Acme Corp email from a full name, e.g. 'David Okafor' → 'd.okafor@acmecorp.com'."""
     parts = name.lower().split()
     return f"{parts[0][0]}.{parts[-1]}@acmecorp.com"
 
 
-@mcp.tool()
 def draft_hr_email(
     employee_id: str,
     email_type: str,
@@ -350,38 +337,35 @@ def draft_hr_email(
     start_date: str | None = None,
     end_date: str | None = None,
 ) -> dict[str, Any]:
-    """Draft a professional HR email (PTO request, remote work approval, expense reimbursement, etc.).
-    Always returns a DRAFT — never sends. Supported email_type values: pto_request,
-    remote_work_request, expense_approval, accommodation_request, general."""
-    employees = _get_employees()
-    emp = employees.get(employee_id)
+    """Draft a professional HR email. Always returns a DRAFT — never sends.
 
-    sender_name  = emp["name"]        if emp else f"Employee {employee_id}"
-    sender_role  = emp["role"]        if emp else "Unknown Role"
-    sender_dept  = emp["department"]  if emp else "Unknown Department"
-    manager_id   = emp.get("manager_id") if emp else None
-    manager      = employees.get(manager_id) if manager_id else None
+    email_type values: pto_request, remote_work_request, expense_approval,
+    accommodation_request, general.
+    """
+    employees    = _get_employees()
+    emp          = employees.get(employee_id)
+    sender_name  = emp["name"]       if emp else f"Employee {employee_id}"
+    sender_role  = emp["role"]       if emp else "Unknown Role"
+    sender_dept  = emp["department"] if emp else "Unknown Department"
+    manager      = employees.get(emp["manager_id"]) if emp and emp.get("manager_id") else None
     manager_name = manager["name"] if manager else "People Operations Team"
 
-    # Resolve recipient
     to_target = _EMAIL_TO.get(email_type, "people-ops@acmecorp.com")
     if to_target == "manager":
-        to_addr = _name_to_email(manager_name) if manager else "people-ops@acmecorp.com"
+        to_addr    = _name_to_email(manager_name) if manager else "people-ops@acmecorp.com"
         salutation = f"Hi {manager_name.split()[0]},"
     else:
         to_addr    = to_target
         salutation = "Dear People Operations Team,"
 
-    # Build date clause
     date_clause = ""
     if start_date and end_date and start_date != end_date:
         date_clause = f" from {start_date} to {end_date}"
     elif start_date:
         date_clause = f" on {start_date}"
 
-    base_subject = _EMAIL_SUBJECTS.get(email_type, "HR Inquiry")
-    subject      = f"{base_subject}{date_clause}" if date_clause else base_subject
-    intro        = _EMAIL_INTROS.get(email_type, _EMAIL_INTROS["general"])
+    subject = _EMAIL_SUBJECTS.get(email_type, "HR Inquiry") + date_clause
+    intro   = _EMAIL_INTROS.get(email_type, _EMAIL_INTROS["general"])
 
     body = f"""{salutation}
 
@@ -395,23 +379,68 @@ Thank you for your time and consideration.
 
 Best regards,
 {sender_name}
-{sender_role}, {sender_dept}
-"""
+{sender_role}, {sender_dept}"""
 
     return {
-        "draft_only":  True,
-        "to":          to_addr,
-        "cc":          "people-ops@acmecorp.com",
-        "subject":     subject,
-        "body":        body.strip(),
-        "from_name":   sender_name,
-        "from_email":  _name_to_email(sender_name) if emp else f"{employee_id.lower()}@acmecorp.com",
+        "draft_only": True,
+        "to":         to_addr,
+        "cc":         "people-ops@acmecorp.com",
+        "subject":    subject,
+        "body":       body,
+        "from_name":  sender_name,
+        "from_email": _name_to_email(sender_name) if emp else f"{employee_id.lower()}@acmecorp.com",
     }
 
 
-# ── Entry point ──────────────────────────────────────────────────────────────
+# ── FastAPI REST service ───────────────────────────────────────────────────────
+
+app = FastAPI(title="Acme HR MCP Tool Server", version="0.1.0")
+
+
+def _schema() -> list[dict[str, Any]]:
+    return json.loads(_SCHEMA_FILE.read_text(encoding="utf-8"))["tools"]
+
+
+@app.get("/health")
+def health() -> dict[str, Any]:
+    return {"status": "ok", "tool_count": len(_schema())}
+
+
+@app.get("/tools")
+def discover_tools() -> dict[str, Any]:
+    return {"tools": _schema()}
+
+
+@app.post("/tools/{tool_name}")
+def call_tool(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+    if tool_name == "search_policy_documents":
+        return search_policy_documents(args["query"], int(args.get("top_k", 5)), args.get("doc_id"))
+    if tool_name == "get_policy_section":
+        return get_policy_section(args["doc_id"], args["section"])
+    if tool_name == "lookup_employee_profile":
+        return lookup_employee_profile(args["employee_id"])
+    if tool_name == "check_pto_balance":
+        return check_pto_balance(args["employee_id"])
+    if tool_name == "lookup_benefits_status":
+        return lookup_benefits_status(args["employee_id"])
+    if tool_name == "create_mock_hr_ticket":
+        return create_mock_hr_ticket(
+            args["employee_id"], args["ticket_type"], args["subject"], args["description"],
+            args.get("requested_start_date"), args.get("requested_end_date"),
+        )
+    if tool_name == "check_policy_compliance":
+        return check_policy_compliance(args["employee_id"], args["action"], args.get("context", ""))
+    if tool_name == "draft_hr_email":
+        return draft_hr_email(
+            args["employee_id"], args["email_type"], args["details"],
+            args.get("start_date"), args.get("end_date"),
+        )
+    raise HTTPException(status_code=404, detail=f"Unknown tool: {tool_name}")
+
+
+# ── Entry point ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    import anyio
-    print(f"Starting Acme Corp HR MCP Server on http://127.0.0.1:{PORT}/mcp")
-    anyio.run(lambda: mcp.run_streamable_http_async(host="127.0.0.1", port=PORT))
+    import uvicorn
+    print(f"Starting Acme HR Tool Server on http://127.0.0.1:{PORT}")
+    uvicorn.run("src.mcp.server:app", host="127.0.0.1", port=PORT, reload=False)

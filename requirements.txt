@@ -7,10 +7,12 @@ pypdf>=4.0.0
 # policy format conversion (scripts/convert_policies.py)
 markdown>=3.6
 reportlab>=4.0.0
-# MCP server + web app
-mcp>=1.2.0
-uvicorn>=0.30.0
-fastapi>=0.111.0
+# MCP tool server + web app
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+httpx>=0.27.0
 # Agent layer
 openai>=1.0.0
 python-dotenv>=1.0.0
+# Testing
+pytest>=8.0.0
