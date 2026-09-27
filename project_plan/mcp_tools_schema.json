@@ -194,7 +194,7 @@
               "hsa_enrolled": {
                 "type": "boolean"
               },
-              "401k_percent": {
+              "401k_contribution_pct": {
                 "type": "number"
               },
               "401k_employer_match_pct": {
@@ -305,7 +305,7 @@
               "hsa_enrolled": {
                 "type": "boolean"
               },
-              "401k_percent": {
+              "401k_contribution_pct": {
                 "type": "number"
               },
               "401k_employer_match_pct": {
