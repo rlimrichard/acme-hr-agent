@@ -302,8 +302,20 @@
               "fsa_enrolled": {
                 "type": "boolean"
               },
+              "hsa_enrolled": {
+                "type": "boolean"
+              },
               "401k_percent": {
                 "type": "number"
+              },
+              "401k_employer_match_pct": {
+                "type": "number"
+              },
+              "life_insurance": {
+                "type": "string"
+              },
+              "commuter_benefit": {
+                "type": "boolean"
               }
             }
           },
