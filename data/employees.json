@@ -54,7 +54,7 @@
           "start_date": "2025-10-06",
           "end_date": "2025-10-10",
           "days_requested": 5,
-          "status": "pending_approval",
+          "status": "pending",
           "reason": "Family vacation"
         }
       ]
