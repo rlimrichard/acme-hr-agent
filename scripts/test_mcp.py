@@ -61,7 +61,7 @@ def test_employee_tools() -> bool:
                          ben["benefits_election"]["health_plan"] == "PPO Premium"))
     results.append(check("EMP-001 benefits has all fields",
                          all(k in ben["benefits_election"]
-                             for k in ["dental", "vision", "fsa_enrolled", "401k_percent"])))
+                             for k in ["dental", "vision", "fsa_enrolled", "401k_contribution_pct"])))
 
     return all(results)
 
