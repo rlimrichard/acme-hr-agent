@@ -236,36 +236,51 @@ The chat UI displays the answer with inline citations, expandable tool-call trac
 
 ### 8.1 Evaluation Set (25 questions)
 
-| Category | Count |
-|----------|-------|
-| Straightforward policy Q&A | 8 |
-| Multi-document questions | 5 |
-| Tool-requiring agentic tasks | 6 |
-| Ambiguous requests | 3 |
-| Out-of-scope requests | 3 |
+| Category | Count | File |
+|----------|-------|------|
+| Straightforward policy Q&A | 8 | `evaluation/questions.json` (Q001–Q008) |
+| Multi-document questions | 5 | Q009–Q013 |
+| Tool-requiring agentic tasks | 7 | Q014–Q020 |
+| Ambiguous requests | 3 | Q021–Q023 |
+| Out-of-scope requests | 2 | Q024–Q025 |
 
-Full questions, gold answers, and rubrics are in `evaluation/questions.json`.
+Each question carries: `expected_escalated`, `expected_tools` (list), `expected_citation_docs` (list of policy doc IDs), `gold_keywords` (list of strings that must appear in the answer), and `confirmed` (whether the request should trigger write-action safety checks).
 
-### 8.2 Answer Quality Metrics
+### 8.2 Automated Evaluation Runner
 
-| Metric | Method | Target |
-|--------|--------|--------|
-| Groundedness | LLM-as-judge: does answer stay within retrieved context? | ≥ 0.85 |
-| Citation accuracy | Do cited doc IDs appear in retrieved chunks? | ≥ 0.90 |
-| Exact/partial match | Keyword overlap with gold answers on short-answer questions | — |
+`evaluation/eval_runner.py` POSTs every question to `/chat`, measures latency, and scores five metrics automatically:
 
-### 8.3 Agent Behavior Metrics
+| Metric | Computation | Target |
+|--------|------------|--------|
+| Escalation accuracy | `response.escalated == expected_escalated` | ≥ 0.90 |
+| Tool recall | Fraction of `expected_tools` present in `response.tool_trace` | ≥ 0.50 avg |
+| Citation recall | Fraction of `expected_citation_docs` present in `response.citations` | ≥ 0.50 avg |
+| Keyword match | Fraction of `gold_keywords` found (case-insensitive) in answer text | ≥ 0.50 avg |
+| Action safety | `create_mock_hr_ticket` only called when `confirmed=True` | 1.00 |
 
-| Metric | Method | Target |
-|--------|--------|--------|
-| Tool selection accuracy | Correct tool called vs gold tool sequence | ≥ 0.85 |
-| Workflow completion rate | End-to-end task completed without manual intervention | ≥ 0.80 |
-| Escalation accuracy | Out-of-scope and ambiguous questions correctly escalated | ≥ 0.90 |
-| Action-safety pass rate | No unrequested write actions | 1.00 |
+A question is an **overall pass** when all five metrics meet their thresholds. The runner exits with code 1 if overall pass rate < 70%.
 
-### 8.4 System Metrics
+**Run against local dev:**
+```bash
+python evaluation/eval_runner.py --endpoint http://localhost:8000
+```
 
-Latency measured across 20 warm queries (cold-start reported separately in `deployed.md`).
+**Run against the live deployment:**
+```bash
+python evaluation/eval_runner.py --endpoint https://acme-hr-agent.onrender.com
+```
+
+**Ablation (tag results with a top-k label for comparison):**
+```bash
+python evaluation/eval_runner.py --endpoint http://localhost:8000 --top-k 3
+python evaluation/eval_runner.py --endpoint http://localhost:8000 --top-k 8
+```
+
+Results are written to `evaluation/results.csv` with one row per question.
+
+### 8.3 System Metrics
+
+Latency measured across warm queries (cold-start reported separately in `deployed.md`).
 
 | Metric | Result |
 |--------|--------|
@@ -314,13 +329,12 @@ Latency measured across 20 warm queries (cold-start reported separately in `depl
 
 ### 8.6 Ablation Study
 
-Two configurations compared on retrieval precision (citation accuracy on the 8 policy Q&A questions):
+Three top-k configurations compared using `evaluation/eval_runner.py --top-k <k>`:
 
-| Config | k | Chunk size | Citation accuracy | Groundedness |
-|--------|---|------------|-------------------|--------------|
-| A (baseline) | 5 | 512 chars | *(TBD)* | *(TBD)* |
-| B | 3 | 512 chars | *(TBD)* | *(TBD)* |
-| C | 8 | 512 chars | *(TBD)* | *(TBD)* |
-| D | 5 | 900 chars | *(TBD)* | *(TBD)* |
+| Config | k | Citation recall | Tool recall | Escalation accuracy | p50 latency |
+|--------|---|----------------|-------------|---------------------|-------------|
+| A (baseline) | 5 | *(TBD)* | *(TBD)* | *(TBD)* | *(TBD)* |
+| B | 3 | *(TBD)* | *(TBD)* | *(TBD)* | *(TBD)* |
+| C | 8 | *(TBD)* | *(TBD)* | *(TBD)* | *(TBD)* |
 
-Results will be populated by `evaluation/eval_runner.py` after deployment.
+Results will be populated from `evaluation/results.csv` after running all three configurations against the deployed endpoint.

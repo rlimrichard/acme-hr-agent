@@ -64,7 +64,7 @@ def health() -> dict[str, Any]:
     try:
         tool_count = len(httpx.get(f"{base_url}/tools", timeout=2).json().get("tools", []))
         connected = tool_count >= 5
-    except httpx.HTTPError:
+    except Exception:
         tool_count, connected = 0, False
     try:
         from src.rag.retrieval import _collection

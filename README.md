@@ -2,7 +2,7 @@
 
 An agentic AI system that answers employee HR questions by reasoning over 20 company policy documents. Built for Quantic MSAIE — AI Engineering Techniques and Architectures.
 
-**Architecture:** Employee chat UI → FastAPI `/chat` → Agent orchestrator → MCP server (7 tools) → ChromaDB RAG + employee JSON data → LLM
+**Architecture:** Employee chat UI → FastAPI `/chat` → Agent orchestrator → MCP server (8 tools) → ChromaDB RAG + employee JSON data → LLM
 
 ---
 
@@ -15,9 +15,9 @@ acme-hr-agent/
 │   │   ├── ingest.py        # Policy ingestion: parse → chunk → embed → ChromaDB
 │   │   └── retrieval.py     # RAG retrieval, context formatting, guarded prompt builder
 │   ├── mcp/
-│   │   └── server.py        # MCP server — 7 tools via Streamable HTTP (port 8001)
-│   ├── agent/               # Agent orchestrator (in progress)
-│   └── app/                 # FastAPI web app — POST /chat, GET /health (in progress)
+│   │   └── server.py        # MCP server — 8 tools via REST HTTP (port 8001)
+│   ├── agent/               # Agent orchestrator — PTO / remote-work / expense workflows
+│   └── app/                 # FastAPI web app — POST /chat, GET /health
 ├── scripts/
 │   ├── test_rag.py          # RAG diagnostic tests (coverage, metadata, retrieval quality)
 │   ├── test_mcp.py          # MCP tool smoke tests (25 checks)
@@ -29,7 +29,11 @@ acme-hr-agent/
 │   ├── PROJECT_PLAN.md      # Per-engineer task breakdown
 │   ├── mcp_tools_schema.json    # MCP tool contracts (JSON Schema)
 │   └── api_contract.json    # Web app API contracts
+├── evaluation/
+│   ├── questions.json       # 25-question eval set (policy Q&A, multi-doc, agentic, ambiguous, OOS)
+│   └── eval_runner.py       # Automated eval runner — POSTs to /chat, scores metrics, writes results.csv
 ├── design-and-evaluation.md # Architecture, RAG design, MCP design, evaluation plan
+├── deployed.md              # Live deployment details and latency measurements
 ├── ai-tooling.md            # AI tooling usage log
 ├── requirements.txt
 └── .env.example
@@ -114,7 +118,7 @@ This takes ~30 seconds on the first run (model load + encoding). Re-running is i
 
 ## Run the MCP Server
 
-The MCP server exposes all 7 HR tools over Streamable HTTP on port 8001:
+The MCP server exposes all 8 HR tools over REST HTTP on port 8001:
 
 ```bash
 python -m src.mcp.server
@@ -189,8 +193,6 @@ Prints the top-5 retrieved chunks and a preview of the guarded LLM system prompt
 ---
 
 ## Start the Web App
-
-> The FastAPI web app (`src/app/`) is in progress.
 
 ```bash
 uvicorn src.app.main:app --reload --port 8080
@@ -283,27 +285,39 @@ The MCP server is launched as a subprocess by the FastAPI startup event on `loca
 
 ## Evaluation
 
-Run the full evaluation suite against the live `/chat` endpoint:
+Run the full 25-question evaluation suite:
 
 ```bash
-python evaluation/eval_runner.py --endpoint http://localhost:8080/chat
+# Local
+python evaluation/eval_runner.py --endpoint http://localhost:8080
+
+# Live deployment
+python evaluation/eval_runner.py --endpoint https://acme-hr-agent.onrender.com
 ```
 
-Runs 25 questions and writes results to `evaluation/results.csv`.
+Results are written to `evaluation/results.csv`. The runner exits with code 1 if overall pass rate < 70%.
 
-**Question set breakdown:**
+**Question set (25 total):**
 
 | Category | Count |
 |---|---|
 | Straightforward policy Q&A | 8 |
 | Multi-document questions | 5 |
-| Tool-requiring agentic tasks | 6 |
+| Tool-requiring agentic tasks | 7 |
 | Ambiguous requests | 3 |
-| Out-of-scope requests | 3 |
+| Out-of-scope requests | 2 |
 
-**Metrics reported:** groundedness, citation accuracy, tool selection accuracy, workflow completion rate, latency p50/p95, ablation study (k=3 vs k=5 vs k=8).
+**Metrics scored per question:** escalation accuracy, tool recall, citation recall, keyword match, action safety (write actions only when `confirmed=True`). Latency p50/p95 reported in aggregate.
 
-Full results are in [`design-and-evaluation.md`](design-and-evaluation.md).
+**Ablation (top-k sweep):**
+
+```bash
+python evaluation/eval_runner.py --top-k 3
+python evaluation/eval_runner.py --top-k 5   # baseline
+python evaluation/eval_runner.py --top-k 8
+```
+
+Full evaluation design and results are in [`design-and-evaluation.md`](design-and-evaluation.md).
 
 ---
 
