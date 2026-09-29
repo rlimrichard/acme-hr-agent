@@ -109,9 +109,10 @@ def health() -> dict[str, Any]:
     except Exception:
         tool_count, connected = 0, False
     try:
-        from src.rag.retrieval import _collection
-        chroma_loaded = _collection is not None
-        doc_count = _collection.count() if chroma_loaded else 0
+        from src.rag import retrieval as _rag
+        _rag._get_collection()
+        chroma_loaded = _rag._collection is not None
+        doc_count = _rag._collection.count() if chroma_loaded else 0
     except Exception:
         chroma_loaded, doc_count = False, 0
     return {"status": "ok" if connected else "degraded", "mcp_connected": connected,
