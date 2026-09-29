@@ -176,6 +176,37 @@ def get_document(filename: str) -> FileResponse:
 def docs_page() -> FileResponse:
     return FileResponse(STATIC_DIR / "documents.html")
 
+@app.get("/admin")
+def admin_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "admin.html")
+
+@app.get("/admin/logs")
+def list_log_dates() -> dict[str, Any]:
+    if not _LOG_DIR.exists():
+        return {"dates": []}
+    dates = sorted(
+        [p.stem for p in _LOG_DIR.glob("*.jsonl") if re.match(r"^\d{4}-\d{2}-\d{2}$", p.stem)],
+        reverse=True,
+    )
+    return {"dates": dates}
+
+@app.get("/admin/logs/{date}")
+def get_log_entries(date: str) -> dict[str, Any]:
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+        raise HTTPException(status_code=400, detail="Invalid date format")
+    log_file = _LOG_DIR / f"{date}.jsonl"
+    if not log_file.exists():
+        return {"date": date, "entries": []}
+    entries = []
+    for line in log_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line:
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                pass
+    return {"date": date, "entries": list(reversed(entries))}
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")

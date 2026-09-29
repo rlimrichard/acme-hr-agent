@@ -714,3 +714,143 @@ body {
 [data-theme="dark"] .modal-frame {
   filter: invert(1) hue-rotate(180deg);
 }
+
+/* ---- Admin log viewer ---- */
+
+.admin-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 22px 12px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.admin-toolbar label {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.admin-date-select {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+}
+.admin-date-select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.admin-count {
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.admin-entries {
+  overflow-y: auto;
+  padding: 16px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-empty {
+  text-align: center;
+  padding: 48px 0;
+  color: var(--ink-faint);
+  font-size: 0.9rem;
+}
+
+.log-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.log-card:hover { border-color: var(--accent); }
+
+.log-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.log-card__time {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+}
+
+.log-card__emp {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 5px;
+  padding: 2px 7px;
+}
+
+.log-card__badge {
+  font-size: 0.72rem;
+  font-weight: 500;
+  border-radius: 5px;
+  padding: 2px 7px;
+}
+.log-card__badge--escalated {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.log-card__badge--tools {
+  background: var(--paper);
+  color: var(--ink-faint);
+  border: 1px solid var(--line);
+}
+
+.log-card__query {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.log-card__answer {
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.log-card__expand {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.8rem;
+  color: var(--accent);
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+.log-card__expand:focus-visible { outline: 2px solid var(--accent); border-radius: 3px; }
+
+@media (max-width: 640px) {
+  .admin-toolbar { padding: 12px 14px; }
+  .admin-entries { padding: 12px 14px; }
+}
