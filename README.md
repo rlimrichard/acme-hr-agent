@@ -239,15 +239,20 @@ curl -X POST http://localhost:8080/chat \
 
 ## CI/CD
 
-GitHub Actions runs on every push and pull request to `main`.
+GitHub Actions runs on every push and pull request to `main`. Passing tests on `main` automatically deploy to production.
 
-**Pipeline steps:**
+**Pipeline (`main` push):**
 1. Install dependencies
 2. Import checks (RAG + MCP modules)
 3. Build ChromaDB index (`python -m src.rag.ingest`)
 4. RAG diagnostic tests (`python scripts/test_rag.py`)
 5. MCP tool smoke tests (`python scripts/test_mcp.py`)
 6. Run orchestrator unit tests (`pytest tests/ -v`)
+7. *(on pass)* SSH into `hrapp.elcaro.io` → `git pull` → rsync → `systemctl restart`
+
+**Pull requests** run steps 1–6 only — they never deploy.
+
+**Required GitHub secret:** `DEPLOY_SSH_KEY` — the OCI server's SSH private key, set under *Settings → Secrets and variables → Actions*.
 
 See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
@@ -255,11 +260,11 @@ See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## Deployment
 
-The app is deployed on Oracle Cloud Infrastructure (`hrapp.elcaro.io`), managed by systemd with nginx as a reverse proxy and TLS via Let's Encrypt.
+The app is deployed on Oracle Cloud Infrastructure (`hrapp.elcaro.io`), managed by systemd with nginx as a reverse proxy and TLS via Let's Encrypt. Deployments are automated via CI/CD — every push to `main` that passes tests ships automatically.
 
 **Live URL:** https://hrapp.elcaro.io
 
-**Deploy updates:**
+**Manual deploy (if needed):**
 ```bash
 DEPLOY_SSH_KEY=/path/to/key ./scripts/deploy.sh
 ```

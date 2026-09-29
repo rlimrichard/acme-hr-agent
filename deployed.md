@@ -44,13 +44,25 @@ All components run on one OCI compute instance (`hrapp.elcaro.io`):
 
 ## Deploying updates
 
+### Automatic (CI/CD)
+
+Every push to `main` that passes CI tests deploys automatically via GitHub Actions:
+
+1. GitHub Actions SSHes into the server using the `DEPLOY_SSH_KEY` secret
+2. `git pull --ff-only` in `/opt/acme-hr-agent/acme-hr-agent/`
+3. `rsync` syncs source files to the service working directory (preserving `chroma_db/` and `data/`)
+4. `sudo systemctl restart acme-hr-agent`
+5. Health check confirms the service is up
+
+**Required secret:** Add the OCI SSH private key as `DEPLOY_SSH_KEY` under *GitHub → Settings → Secrets and variables → Actions*.
+
+### Manual
+
 ```bash
 DEPLOY_SSH_KEY=/path/to/ssh_key ./scripts/deploy.sh
 ```
 
-This script SSHs in, runs `git pull`, syncs dependencies, and restarts the service.
-
-Manual steps if needed:
+Or directly on the server:
 ```bash
 cd /opt/acme-hr-agent/acme-hr-agent
 git pull --ff-only
