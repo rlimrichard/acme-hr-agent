@@ -3,7 +3,7 @@ Evaluation runner for the Acme HR Agent.
 
 Usage:
     python evaluation/eval_runner.py
-    python evaluation/eval_runner.py --endpoint https://acme-hr-agent.onrender.com
+    python evaluation/eval_runner.py --endpoint https://hrapp.elcaro.io
     python evaluation/eval_runner.py --top-k 3   # labels results for ablation; requires API support
     python evaluation/eval_runner.py --questions evaluation/questions.json --out evaluation/results.csv
 

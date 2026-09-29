@@ -255,21 +255,18 @@ See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## Deployment
 
-The app is deployed on Render (free tier). A single service runs the web app, agent, MCP server, and ChromaDB.
+The app is deployed on Oracle Cloud Infrastructure (`hrapp.elcaro.io`), managed by systemd with nginx as a reverse proxy and TLS via Let's Encrypt.
 
-**Live URL:** https://acme-hr-agent.onrender.com
+**Live URL:** https://hrapp.elcaro.io
 
-**Build command (Render):**
+**Deploy updates:**
 ```bash
-pip install -r requirements.txt && python -m src.rag.ingest
+DEPLOY_SSH_KEY=/path/to/key ./scripts/deploy.sh
 ```
 
-**Start command (Render):**
-```bash
-uvicorn src.app.main:app --host 0.0.0.0 --port $PORT
-```
+The MCP server is launched as a subprocess by the FastAPI startup event on `localhost:8001`. Secrets are stored in `/etc/sysconfig/acme-hr-agent` on the server — never in code or committed files.
 
-The MCP server is launched as a subprocess by the FastAPI startup event on `localhost:8001`. All secrets are set as Render environment variables — never in code.
+See [deployed.md](deployed.md) for full server setup details.
 
 ---
 
@@ -282,7 +279,7 @@ Run the full 25-question evaluation suite:
 python evaluation/eval_runner.py --endpoint http://localhost:8080
 
 # Live deployment
-python evaluation/eval_runner.py --endpoint https://acme-hr-agent.onrender.com
+python evaluation/eval_runner.py --endpoint https://hrapp.elcaro.io
 ```
 
 Results are written to `evaluation/results.csv`. The runner exits with code 1 if overall pass rate < 70%.
