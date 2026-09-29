@@ -49,6 +49,7 @@ body {
   display: grid;
   grid-template-rows: auto 1fr auto;
   height: 100vh;
+  height: 100dvh;
   max-width: 780px;
   margin: 0 auto;
   border-left: 1px solid var(--line);
@@ -254,10 +255,7 @@ body {
 }
 .doc-btn--primary:hover { background: var(--accent); color: #fff; }
 
-@media (max-width: 640px) {
-  .doc-card { flex-wrap: wrap; }
-  .doc-actions { width: 100%; justify-content: flex-end; }
-}
+/* doc-card mobile handled in the consolidated block below */
 
 /* ---- Document preview modal ---- */
 
@@ -598,10 +596,64 @@ body {
 .composer button:disabled { background: var(--ink-faint); cursor: default; }
 .composer button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* ---- Mobile ---- */
+
 @media (max-width: 640px) {
   .app-shell { border: none; }
+
+  /* Topbar: wrap into two rows.
+     Row 1 — brand · [auto spacer] · employee input · theme toggle · status dot
+     Row 2 — nav links (full width, separated by a hairline) */
+  .topbar {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding: 10px 14px;
+  }
+  .topbar__nav {
+    order: 10;
+    flex: 0 0 100%;
+    margin-left: 0;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+    gap: 4px;
+  }
+  .nav-link { padding: 7px 14px; }
+
+  /* Hide "Employee ID" label — the monospace input is self-explanatory */
+  .topbar__session label { display: none; }
+  .topbar__session input  { width: 84px; }
+
+  /* Status: just the dot — text is redundant on small screens */
+  #health-label { display: none; }
+
+  /* Thread */
+  .thread { padding: 18px 14px; gap: 14px; }
+  .thread__intro { margin: 8px auto; }
+  .thread__intro h1 { font-size: 1.25rem; }
+
+  /* Openers: single column */
   .openers__row { grid-template-columns: 1fr; }
-  .topbar__session input { width: 76px; }
+
+  /* Bubbles can use more width on narrow screens */
+  .message__bubble { max-width: 90%; }
+
+  /* Composer */
+  .composer { padding: 10px 14px; }
+  .composer textarea { font-size: 16px; } /* prevent iOS auto-zoom on focus */
+
+  /* Employee ID input: same iOS-zoom prevention */
+  .topbar__session input { font-size: 16px; }
+
+  /* Documents page */
+  .doc-card { flex-wrap: wrap; }
+  .doc-actions { width: 100%; justify-content: flex-end; }
+  .doc-modal { padding: 0; }
+  .doc-modal__dialog {
+    width: 100vw;
+    height: 100dvh;
+    border-radius: 0;
+    border: none;
+  }
 }
 
 /* Confirmation button, shown when the agent asks the user to confirm a side-effecting action */
