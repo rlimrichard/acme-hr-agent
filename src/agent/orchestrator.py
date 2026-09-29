@@ -94,8 +94,18 @@ class HRAgent:
         amount_text = f"Your current balance is {balance.get('pto_balance_days', 0)} days"
         if requested is not None:
             amount_text += f"; the request appears to require about {requested:g} days, so it is {'within' if enough else 'above'} that balance"
-        response.answer = (f"[OFFICIAL POLICY] {amount_text}. PTO requires direct-manager approval and may be limited by team coverage or a designated blackout period. "
-                           f"{compliance['verdict']} A manager-email draft was prepared but not sent.")
+        email_block = (
+            f"\n\n── Draft email (not sent) ──\n"
+            f"To: {email.get('to', 'your manager')}\n"
+            f"Cc: {email.get('cc', '')}\n"
+            f"Subject: {email.get('subject', 'PTO Request')}\n\n"
+            f"{email.get('body', '')}"
+        )
+        response.answer = (
+            f"[OFFICIAL POLICY] {amount_text}. PTO requires direct-manager approval and may be limited "
+            f"by team coverage or a designated blackout period. {compliance['verdict']}"
+            f"{email_block}"
+        )
         response.escalated = not profile.get("found", False) or not enough
         return response
 
