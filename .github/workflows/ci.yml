@@ -50,3 +50,33 @@ jobs:
 
       - name: Run orchestrator unit tests
         run: pytest tests/ -v
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Deploy to hrapp.elcaro.io
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: hrapp.elcaro.io
+          username: opc
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            # Pull latest code from git clone
+            cd /opt/acme-hr-agent/acme-hr-agent
+            git pull --ff-only
+            # Sync source files to the service working directory
+            # (excludes: .git, .venv, chroma_db, data — those stay in place)
+            rsync -a \
+              --exclude='.git' \
+              --exclude='.venv' \
+              --exclude='chroma_db' \
+              --exclude='data' \
+              . /opt/acme-hr-agent/
+            # Restart and verify
+            sudo systemctl restart acme-hr-agent
+            sleep 10
+            curl -sf http://127.0.0.1:8000/health | python3 -m json.tool
