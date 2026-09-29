@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
 import sys
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +22,27 @@ from pydantic import BaseModel, Field
 from src.agent.orchestrator import HRAgent, MCPClient
 
 _mcp_proc: subprocess.Popen | None = None
+
+_LOG_DIR = Path(__file__).parents[2] / "logs"
+
+
+def _log_chat(employee_id: str, query: str, result: dict[str, Any]) -> None:
+    try:
+        _LOG_DIR.mkdir(exist_ok=True)
+        now = datetime.now(timezone.utc)
+        log_file = _LOG_DIR / f"{now.strftime('%Y-%m-%d')}.jsonl"
+        entry = {
+            "timestamp": now.isoformat(timespec="seconds"),
+            "employee_id": employee_id,
+            "query": query,
+            "answer": result.get("answer", ""),
+            "escalated": result.get("escalated", False),
+            "tool_steps": len(result.get("tool_trace", [])),
+        }
+        with log_file.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass  # logging must never break the chat response
 
 
 @asynccontextmanager
@@ -122,7 +145,9 @@ def health() -> dict[str, Any]:
 @app.post("/chat")
 def chat(request: ChatRequest) -> dict[str, Any]:
     try:
-        return HRAgent(MCPClient()).answer(request.query, request.employee_id, request.confirmed).as_dict()
+        result = HRAgent(MCPClient()).answer(request.query, request.employee_id, request.confirmed).as_dict()
+        _log_chat(request.employee_id, request.query, result)
+        return result
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=503, detail="The HR tool server is unavailable. Please try again shortly.") from exc
 

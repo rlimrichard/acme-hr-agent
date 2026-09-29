@@ -23,5 +23,8 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Chat logs (one file per day, created at runtime)
+logs/
+
 # Claude
 .claude/
