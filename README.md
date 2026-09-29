@@ -126,7 +126,7 @@ python -m src.mcp.server
 
 Expected output:
 ```
-Starting Acme Corp HR MCP Server on http://127.0.0.1:8001/mcp
+Starting Acme HR Tool Server on http://127.0.0.1:8001
 INFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
 ```
 
@@ -137,26 +137,15 @@ INFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
 python scripts/test_mcp.py
 ```
 
-**Option 2 — MCP Inspector (interactive browser UI):**
-```bash
-# Terminal 1: start the server
-python -m src.mcp.server
-
-# Terminal 2: open the inspector
-npx @modelcontextprotocol/inspector http://localhost:8001/mcp
-```
-
-**Option 3 — curl:**
+**curl (REST):**
 ```bash
 # List all tools
-curl -X POST http://localhost:8001/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+curl http://localhost:8001/tools
 
 # Call lookup_employee_profile
-curl -X POST http://localhost:8001/mcp \
+curl -X POST http://localhost:8001/tools/lookup_employee_profile \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"lookup_employee_profile","arguments":{"employee_id":"EMP-001"}}}'
+  -d '{"employee_id": "EMP-001"}'
 ```
 
 ### Available MCP tools
@@ -258,6 +247,7 @@ GitHub Actions runs on every push and pull request to `main`.
 3. Build ChromaDB index (`python -m src.rag.ingest`)
 4. RAG diagnostic tests (`python scripts/test_rag.py`)
 5. MCP tool smoke tests (`python scripts/test_mcp.py`)
+6. Run orchestrator unit tests (`pytest tests/ -v`)
 
 See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 

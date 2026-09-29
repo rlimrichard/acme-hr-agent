@@ -46,7 +46,7 @@ This occurred on long unbreakable tokens (URLs, hyphenated strings) in several p
 
 ### MCP Tool Schemas (`project_plan/mcp_tools_schema.json`)
 
-The 7 MCP tool schemas (input/output JSON Schema definitions) were generated with Claude Code. All field types, enums, required arrays, and descriptions were produced in one pass and required no structural corrections.
+The 8 MCP tool schemas (input/output JSON Schema definitions) were generated with Claude Code. All field types, enums, required arrays, and descriptions were produced in one pass and required no structural corrections.
 
 **What worked well:** Claude correctly applied JSON Schema conventions (`"type": "object"`, `"required": []`, `enum` constraints) and added sensible descriptions to every field — detail that is easy to skip when writing by hand but important for the MCP client's tool-discovery behaviour.
 
@@ -54,11 +54,23 @@ The 7 MCP tool schemas (input/output JSON Schema definitions) were generated wit
 
 ### MCP Server Implementation (`src/mcp/server.py`)
 
-Claude Code generated the full MCP server in one pass, using `FastMCP` from the `mcp` Python SDK. The tool logic — embedding-backed retrieval for `search_policy_documents` and `get_policy_section`, JSON file reads for the employee data tools, in-memory dict for `create_mock_hr_ticket`, and the prohibition-keyword heuristic for `check_policy_compliance` — was wired correctly on the first generation.
+Claude Code generated the initial MCP server using `FastMCP` from the `mcp` Python SDK. The tool logic — embedding-backed retrieval for `search_policy_documents` and `get_policy_section`, JSON file reads for the employee data tools, in-memory dict for `create_mock_hr_ticket`, and the prohibition-keyword heuristic for `check_policy_compliance` — was wired correctly on the first generation.
 
-**What needed correction — mcp 2.x API change discovered at runtime:** The generated code used `from mcp.server.fastmcp import FastMCP`, which is the mcp 1.x API. The installed package was mcp 2.x, where `FastMCP` was renamed to `MCPServer` (`from mcp.server.mcpserver import MCPServer`). The error message was clear and the fix was a one-line import change. This is a representative example of a library version mismatch that is impossible to detect statically — the correct fix required running the code.
+**What needed correction — SDK dependency issues at runtime:** The generated code used `from mcp.server.fastmcp import FastMCP`. At runtime, `FastMCP` was not resolvable in the installed mcp 2.x package. Rather than chase version-specific SDK paths, the server was rewritten as a plain FastAPI REST server (`GET /tools`, `POST /tools/{name}`, `GET /health`). This eliminated the SDK dependency entirely and matched exactly how the orchestrator's `MCPClient` (using `httpx`) calls tools. The rewrite was clean: a 440-line FastAPI server with the same tool logic, no protocol overhead.
 
-**What worked well:** The lazy singleton pattern for the employees dict (mirroring the existing pattern in `retrieval.py`) was applied correctly without prompting. The tool docstrings, which the MCP SDK uses as tool descriptions for the client, were accurate and informative on first generation. The 25-check `scripts/test_mcp.py` test suite was also generated in one pass and all checks passed immediately.
+**What worked well:** The lazy singleton pattern for the employees dict (mirroring the existing pattern in `retrieval.py`) was applied correctly without prompting. The 25-check `scripts/test_mcp.py` test suite was generated in one pass and all checks passed immediately after the rewrite.
+
+---
+
+### LLM Provider (OpenRouter)
+
+The project was initially configured to use the Anthropic API directly (`anthropic.Anthropic()`). This was replaced with OpenRouter using the `openai` SDK with `base_url="https://openrouter.ai/api/v1"` and model `qwen/qwen3.8-27b:free`. The switch required: (1) adding `OPENROUTER_API_KEY` to `.env`; (2) changing the client instantiation from `anthropic.Anthropic()` to `openai.OpenAI(base_url=..., api_key=...)`. No changes to prompt templates or response parsing were needed.
+
+---
+
+### Evaluation Suite (`evaluation/questions.json`, `evaluation/eval_runner.py`)
+
+25 questions and an automated runner were generated with Claude Code. The question set was designed from first principles: employee IDs and PTO balances were embedded as `gold_keywords` so the runner can verify the agent actually retrieved the right employee record. The eval runner scores 5 metrics automatically without an LLM judge. First run result: 88% overall pass rate (22/25); multi_doc category 2/5 due to single-workflow routing selecting one policy domain per request.
 
 ---
 
@@ -99,4 +111,4 @@ Both documentation files were written with Claude Code, using the codebase and p
 
 ## Time Impact
 
-AI tooling reduced estimated development time for the knowledge layer (RAG pipeline, policy corpus, mock data, MCP tool schemas) from approximately 3–4 days of engineering work to approximately 1 day, with the remaining time spent on integration, testing, and iteration. Documentation that would typically be written last and under time pressure was instead drafted in parallel with the code.
+AI tooling reduced estimated development time for the knowledge layer (RAG pipeline, policy corpus, mock data, MCP tool schemas) from approximately 3–4 days of engineering work to approximately 1 day, with the remaining time spent on integration, testing, and iteration. The evaluation suite (25 questions, automated runner, 5 scored metrics) would typically require a full day; it was generated and validated in under 2 hours. The CI/CD pipeline, deployment configuration, and documentation that would typically be written last and under time pressure were instead drafted in parallel with the code — similarly compressing each from ~half a day to 1–2 hours.

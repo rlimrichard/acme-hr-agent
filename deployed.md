@@ -50,6 +50,8 @@ Warm requests (after the first) complete in 2–8 s depending on LLM provider la
 
 | Metric | Value |
 |---|---|
-| p50 latency | *(to be filled after deployment)* |
-| p95 latency | *(to be filled after deployment)* |
-| Cold-start total | *(to be filled after deployment)* |
+| p50 latency (local) | 57 ms |
+| p95 latency (local) | 6,313 ms (includes LLM round-trip via OpenRouter) |
+| p50 latency (Render) | *(run `python evaluation/eval_runner.py --endpoint https://acme-hr-agent.onrender.com`)* |
+| p95 latency (Render) | *(see above)* |
+| Cold-start total | ~30–45 s (Render free tier; ChromaDB + embedding model load) |

@@ -105,7 +105,7 @@ Once committed, all three tracks are fully independent.
 
 - [ ] MCP server implementation in `mcp/server.py`
 - [ ] **Transport:** localhost HTTP (Streamable HTTP) — simple, free-tier compatible, survives deployment
-- [ ] **7 tools exposed:**
+- [ ] **8 tools exposed:**
 
 | Tool | Data Source | Type |
 |---|---|---|
@@ -116,6 +116,7 @@ Once committed, all three tracks are fully independent.
 | `lookup_benefits_status` | `employees.json` | Read |
 | `create_mock_hr_ticket` | In-memory / `tickets.json` | **Mock write** |
 | `check_policy_compliance` | RAG + employee profile combined | Read |
+| `draft_hr_email` | `employees.json` | Read (draft only) |
 
 - [ ] Agent calls tools via HTTP — no direct function imports across the boundary
 - [ ] Tool discovery: agent calls `GET /tools` on startup to list available tools and schemas
@@ -234,28 +235,28 @@ Final     All:  integration test → demo rehearsal → video recording
 
 | Requirement | Owner (Engineer) | Status |
 |---|---|---|
-| venv + requirements.txt + env vars | Richard | — |
-| ≥2 file formats parsed | Richard | — |
-| Heading-aware chunking with metadata | Richard | — |
-| Local vector store (ChromaDB) | Richard | — |
-| Top-k retrieval + guardrails | Richard | — |
-| Multi-document retrieval example | Richard | — |
-| Agent orchestrator with reasoning trace | Moe | — |
-| 2 multi-step agentic workflows | Moe | — |
-| MCP server with ≥5 tools via HTTP | Moe | — |
-| Agent calls tools through MCP layer | Moe | — |
-| /chat and /health endpoints | Moe | — |
-| Chat UI with citation + trace display | Moe | — |
-| Deployed to Render/Railway | Diva | — |
-| GitHub Actions CI/CD + deploy gate | Diva | — |
-| 25-question eval set with gold answers | Diva | — |
-| Groundedness + citation accuracy reported | Diva | — |
-| Tool selection + workflow completion reported | Diva | — |
-| Latency p50/p95 reported | Diva | — |
-| Ablation study | Diva | — |
-| README.md | Diva | — |
-| design-and-evaluation.md | Diva | — |
-| ai-tooling.md | Diva | — |
-| deployed.md | Diva | — |
-| Repo shared with quantic-grader | Any | — |
-| Demo video (7–10 min, all 3 on camera with ID) | All | — |
+| venv + requirements.txt + env vars | Richard | ✅ |
+| ≥2 file formats parsed | Richard | ✅ |
+| Heading-aware chunking with metadata | Richard | ✅ |
+| Local vector store (ChromaDB) | Richard | ✅ |
+| Top-k retrieval + guardrails | Richard | ✅ |
+| Multi-document retrieval example | Richard | ✅ |
+| Agent orchestrator with reasoning trace | Moe | ✅ |
+| 2 multi-step agentic workflows | Moe | ✅ |
+| MCP server with ≥5 tools via HTTP | Moe | ✅ |
+| Agent calls tools through MCP layer | Moe | ✅ |
+| /chat and /health endpoints | Moe | ✅ |
+| Chat UI with citation + trace display | Moe | ⬜ (basic HTML stub; no interactive UI) |
+| Deployed to Render/Railway | Diva | ✅ |
+| GitHub Actions CI/CD + deploy gate | Diva | ⬜ (CI runs; deploy gate not wired) |
+| 25-question eval set with gold answers | Diva | ✅ |
+| Groundedness + citation accuracy reported | Diva | ✅ |
+| Tool selection + workflow completion reported | Diva | ✅ |
+| Latency p50/p95 reported | Diva | ✅ |
+| Ablation study | Diva | ⬜ (runner supports --top-k; results not yet collected) |
+| README.md | Diva | ✅ |
+| design-and-evaluation.md | Diva | ✅ |
+| ai-tooling.md | Diva | ✅ |
+| deployed.md | Diva | ✅ |
+| Repo shared with quantic-grader | Any | ⬜ |
+| Demo video (7–10 min, all 3 on camera with ID) | All | ⬜ |
