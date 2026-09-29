@@ -7,11 +7,13 @@ import subprocess
 import sys
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path  # ADDED — needed for STATIC_DIR below
 from typing import Any
 
 import httpx
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse  # CHANGED — was: from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles  # ADDED
 from pydantic import BaseModel, Field
 
 from src.agent.orchestrator import HRAgent, MCPClient
@@ -51,6 +53,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Acme HR Agent", version="0.1.0", lifespan=lifespan)
 
+# ── ADDED: serve the chat UI's static assets ──────────────────────────────
+STATIC_DIR = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
 
 class ChatRequest(BaseModel):
     query: str = Field(min_length=3)
@@ -84,6 +90,7 @@ def chat(request: ChatRequest) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="The HR tool server is unavailable. Please try again shortly.") from exc
 
 
-@app.get("/", response_class=HTMLResponse)
-def index() -> str:
-    return """<!doctype html><title>Acme HR Agent</title><h1>Acme HR Agent</h1><p>Ask about PTO, remote-work eligibility, or expense reimbursement via <code>POST /chat</code>.</p>"""
+# ── CHANGED: was a hardcoded HTML string, now serves the real chat UI ────
+@app.get("/")
+def index() -> FileResponse:
+    return FileResponse(STATIC_DIR / "index.html")
