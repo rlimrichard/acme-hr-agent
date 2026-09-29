@@ -3,17 +3,18 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import time
 from contextlib import asynccontextmanager
-from pathlib import Path  # ADDED — needed for STATIC_DIR below
+from pathlib import Path
 from typing import Any
 
 import httpx
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse  # CHANGED — was: from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles  # ADDED
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from src.agent.orchestrator import HRAgent, MCPClient
@@ -54,8 +55,43 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Acme HR Agent", version="0.1.0", lifespan=lifespan)
 
 # ── ADDED: serve the chat UI's static assets ──────────────────────────────
-STATIC_DIR = Path(__file__).parent / "static"
+STATIC_DIR   = Path(__file__).parent / "static"
+POLICIES_DIR = Path(__file__).parents[2] / "data" / "policies"
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+_CONTENT_TYPES = {
+    ".pdf":  "application/pdf",
+    ".html": "text/html",
+    ".md":   "text/plain",
+    ".txt":  "text/plain",
+}
+
+def _read_text_for_meta(path: Path) -> str:
+    if path.suffix == ".pdf":
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(str(path))
+            return "\n".join(p.extract_text() or "" for p in reader.pages[:2])
+        except Exception:
+            return ""
+    return path.read_text(encoding="utf-8", errors="replace")
+
+def _doc_meta(path: Path) -> dict[str, Any]:
+    text    = _read_text_for_meta(path)
+    doc_id  = re.search(r"POL-[A-Z]+-\d+", text)
+    title_m = re.search(r"^#\s+(.+)$", text, re.MULTILINE)
+    if not title_m:
+        title_m = re.search(r"<h1[^>]*>([^<]+)</h1>", text, re.IGNORECASE)
+    stem    = path.stem.replace("_", " ").title()
+    return {
+        "filename": path.name,
+        "title":    title_m.group(1).strip() if title_m else stem,
+        "doc_id":   doc_id.group(0) if doc_id else path.stem.upper(),
+        "format":   path.suffix.lstrip("."),
+        "size_kb":  round(path.stat().st_size / 1024, 1),
+        "url":      f"/documents/{path.name}",
+    }
 
 
 class ChatRequest(BaseModel):
@@ -91,6 +127,29 @@ def chat(request: ChatRequest) -> dict[str, Any]:
 
 
 # ── CHANGED: was a hardcoded HTML string, now serves the real chat UI ────
+@app.get("/documents")
+def list_documents() -> dict[str, Any]:
+    docs = sorted(
+        [_doc_meta(p) for p in POLICIES_DIR.iterdir() if p.suffix in _CONTENT_TYPES],
+        key=lambda d: d["doc_id"],
+    )
+    return {"documents": docs}
+
+@app.get("/documents/{filename}")
+def get_document(filename: str) -> FileResponse:
+    path = POLICIES_DIR / filename
+    if not path.exists() or path.suffix not in _CONTENT_TYPES:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return FileResponse(
+        path,
+        media_type=_CONTENT_TYPES[path.suffix],
+        headers={"Content-Disposition": "inline"},
+    )
+
+@app.get("/hr-docs")
+def docs_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "documents.html")
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")

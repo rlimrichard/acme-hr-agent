@@ -8,9 +8,32 @@
 // src/agent/orchestrator.py — confirmed is a parameter on the same call,
 // not something inferred from a follow-up message).
 
+// ---- Theme ----
+const htmlEl = document.documentElement;
+const themeToggle = document.getElementById('theme-toggle');
+
+function applyTheme(theme) {
+  htmlEl.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
+}
+
+(function initTheme() {
+  const saved = localStorage.getItem('theme');
+  if (saved === 'dark' || saved === 'light') {
+    applyTheme(saved);
+  } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    applyTheme('dark');
+  }
+})();
+
+themeToggle.addEventListener('click', () => {
+  applyTheme(htmlEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+});
+
+// ---- Chat ----
 const thread = document.getElementById('thread');
 const intro = document.getElementById('intro');
-const composer = document.getElementById('composer');
+const composerEl = document.getElementById('composer');
 const queryInput = document.getElementById('query-input');
 const sendBtn = document.getElementById('send-btn');
 const employeeIdInput = document.getElementById('employee-id');
@@ -79,7 +102,7 @@ function showThinking() {
   return thread.querySelector('.message--thinking:last-of-type');
 }
 
-function addAgentMessage(data, originalQuery, employeeId) {
+function addAgentMessage(data) {
   const node = tplAgent.content.cloneNode(true);
   const bubble = node.querySelector('.message__bubble');
 
@@ -103,16 +126,6 @@ function addAgentMessage(data, originalQuery, employeeId) {
     renderTrace(traceSection.querySelector('.trace-body'), data.tool_trace);
   }
 
-  const confirmBtn = node.querySelector('.confirm-btn');
-  if (data.requires_confirmation) {
-    confirmBtn.hidden = false;
-    confirmBtn.addEventListener('click', () => {
-      confirmBtn.disabled = true;
-      confirmBtn.textContent = 'Submitting…';
-      sendQuery(originalQuery, employeeId, /* confirmed */ true);
-    });
-  }
-
   thread.appendChild(node);
 
   bubble.querySelectorAll('.section-toggle').forEach((btn) => {
@@ -129,7 +142,7 @@ function addErrorMessage(message) {
   scrollToBottom();
 }
 
-async function sendQuery(query, employeeIdOverride, confirmed = false) {
+async function sendQuery(query, employeeIdOverride) {
   const employeeId = (employeeIdOverride || employeeIdInput.value.trim()).toUpperCase();
 
   if (!EMPLOYEE_ID_PATTERN.test(employeeId)) {
@@ -141,11 +154,7 @@ async function sendQuery(query, employeeIdOverride, confirmed = false) {
     return;
   }
 
-  // Only show the user's own bubble on the first send, not on the confirm-resend
-  // (the confirm button already shows what it's confirming).
-  if (!confirmed) {
-    addUserMessage(query);
-  }
+  addUserMessage(query);
 
   sendBtn.disabled = true;
   const thinkingEl = showThinking();
@@ -154,7 +163,7 @@ async function sendQuery(query, employeeIdOverride, confirmed = false) {
     const res = await fetch('/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, employee_id: employeeId, confirmed }),
+      body: JSON.stringify({ query, employee_id: employeeId }),
     });
 
     thinkingEl?.remove();
@@ -175,7 +184,7 @@ async function sendQuery(query, employeeIdOverride, confirmed = false) {
     }
 
     const data = await res.json();
-    addAgentMessage(data, query, employeeId);
+    addAgentMessage(data);
   } catch (err) {
     thinkingEl?.remove();
     addErrorMessage('Could not reach the server. Is it running?');
@@ -184,7 +193,7 @@ async function sendQuery(query, employeeIdOverride, confirmed = false) {
   }
 }
 
-composer.addEventListener('submit', (e) => {
+composerEl.addEventListener('submit', (e) => {
   e.preventDefault();
   const query = queryInput.value.trim();
   if (!query) return;
@@ -195,7 +204,7 @@ composer.addEventListener('submit', (e) => {
 queryInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
-    composer.requestSubmit();
+    composerEl.requestSubmit();
   }
 });
 

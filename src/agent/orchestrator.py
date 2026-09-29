@@ -60,7 +60,7 @@ class HRAgent:
     @staticmethod
     def _kind(query: str) -> str | None:
         lowered = query.lower()
-        if any(word in lowered for word in ("pto", "time off", "leave", "vacation")) or re.search(r"\b\d+\s+weeks?\s+off\b", lowered):
+        if any(word in lowered for word in ("pto", "time off", "leave", "vacation", "days off", "day off", "take off")) or re.search(r"\b\d+\s+(?:days?|weeks?)\s+off\b", lowered):
             return "pto"
         if any(word in lowered for word in ("remote", "work from", "abroad", "spain", "another state", "international")):
             return "remote"
@@ -106,16 +106,12 @@ class HRAgent:
         compliance = self._invoke(response, "check_policy_compliance", employee_id=employee_id, action=query,
                                   context=f"remote status: {profile.get('remote_status', 'unknown')}")
         self._sources(response, policies["chunks"])
+        ticket = self._invoke(response, "create_mock_hr_ticket", employee_id=employee_id, ticket_type="general_inquiry",
+                              subject="Remote-work eligibility request", description=query)
         response.answer = (f"[OFFICIAL POLICY] {compliance['verdict']} {compliance['conditions']} "
-                           "The cited remote-work and security policies should guide the review.")
+                           f"The cited remote-work and security policies should guide the review. "
+                           f"A mock HR approval ticket {ticket['ticket_id']} has been created.")
         response.escalated = True
-        if confirmed:
-            ticket = self._invoke(response, "create_mock_hr_ticket", employee_id=employee_id, ticket_type="general_inquiry",
-                                  subject="Remote-work eligibility request", description=query)
-            response.answer += f" Your mock approval ticket {ticket['ticket_id']} has been created."
-        else:
-            response.requires_confirmation = True
-            response.answer += " If you want a mock HR approval ticket created, explicitly confirm that action."
         return response
 
     def _expense(self, query: str, employee_id: str) -> AgentResponse:
