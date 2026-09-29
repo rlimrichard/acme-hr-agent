@@ -80,6 +80,7 @@ app = FastAPI(title="Acme HR Agent", version="0.1.0", lifespan=lifespan)
 # ── ADDED: serve the chat UI's static assets ──────────────────────────────
 STATIC_DIR   = Path(__file__).parent / "static"
 POLICIES_DIR = Path(__file__).parents[2] / "data" / "policies"
+_TICKETS_FILE = Path(__file__).parents[2] / "data" / "tickets.jsonl"
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
@@ -189,6 +190,20 @@ def list_log_dates() -> dict[str, Any]:
         reverse=True,
     )
     return {"dates": dates}
+
+@app.get("/admin/tickets")
+def list_tickets() -> dict[str, Any]:
+    if not _TICKETS_FILE.exists():
+        return {"tickets": []}
+    tickets = []
+    for line in _TICKETS_FILE.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line:
+            try:
+                tickets.append(json.loads(line))
+            except json.JSONDecodeError:
+                pass
+    return {"tickets": list(reversed(tickets))}
 
 @app.get("/admin/logs/{date}")
 def get_log_entries(date: str) -> dict[str, Any]:

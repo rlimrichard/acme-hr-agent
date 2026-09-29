@@ -31,15 +31,34 @@
     </header>
 
     <div class="admin-panel">
-      <div class="admin-toolbar">
-        <label for="date-select">Date</label>
-        <select id="date-select" class="admin-date-select">
-          <option value="">Loading…</option>
-        </select>
-        <span class="admin-count" id="entry-count"></span>
+      <!-- Tab switcher -->
+      <div class="admin-tabs" role="tablist">
+        <button class="admin-tab admin-tab--active" id="tab-conversations" role="tab" aria-selected="true" aria-controls="panel-conversations">Conversations</button>
+        <button class="admin-tab" id="tab-tickets" role="tab" aria-selected="false" aria-controls="panel-tickets">Tickets</button>
       </div>
-      <div class="admin-entries" id="entries-list">
-        <div class="admin-empty">Loading logs…</div>
+
+      <!-- Conversations panel -->
+      <div id="panel-conversations" role="tabpanel" aria-labelledby="tab-conversations" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
+        <div class="admin-toolbar">
+          <label for="date-select">Date</label>
+          <select id="date-select" class="admin-date-select">
+            <option value="">Loading…</option>
+          </select>
+          <span class="admin-count" id="entry-count"></span>
+        </div>
+        <div class="admin-entries" id="entries-list">
+          <div class="admin-empty">Loading logs…</div>
+        </div>
+      </div>
+
+      <!-- Tickets panel -->
+      <div id="panel-tickets" role="tabpanel" aria-labelledby="tab-tickets" style="display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
+        <div class="admin-toolbar">
+          <span class="admin-count" id="ticket-count"></span>
+        </div>
+        <div class="admin-entries" id="tickets-list">
+          <div class="admin-empty">Loading tickets…</div>
+        </div>
       </div>
     </div>
   </div>

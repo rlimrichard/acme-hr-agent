@@ -725,11 +725,35 @@ body {
   min-height: 0;
 }
 
+.admin-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 12px 22px 0;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.admin-tab {
+  padding: 8px 16px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+.admin-tab:hover { color: var(--ink); }
+.admin-tab--active { color: var(--accent); border-bottom-color: var(--accent); }
+.admin-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
 .admin-toolbar {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 22px 12px;
+  padding: 12px 22px;
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
 }
@@ -850,7 +874,72 @@ body {
 }
 .log-card__expand:focus-visible { outline: 2px solid var(--accent); border-radius: 3px; }
 
+.ticket-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ticket-card:hover { border-color: var(--accent); }
+
+.ticket-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ticket-card__id {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--ink-faint);
+}
+
+.ticket-card__type {
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--warm-soft);
+  color: var(--warm);
+  border-radius: 5px;
+  padding: 2px 7px;
+  text-transform: capitalize;
+}
+
+.ticket-card__time {
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+  margin-left: auto;
+}
+
+.ticket-card__subject {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+
+.ticket-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.ticket-card__meta span { display: flex; gap: 4px; }
+.ticket-card__meta strong { color: var(--ink-faint); font-weight: 400; }
+
+.ticket-card__description {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
 @media (max-width: 640px) {
-  .admin-toolbar { padding: 12px 14px; }
+  .admin-tabs { padding: 10px 14px 0; }
+  .admin-toolbar { padding: 10px 14px; }
   .admin-entries { padding: 12px 14px; }
+  .ticket-card__time { margin-left: 0; width: 100%; }
 }

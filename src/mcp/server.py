@@ -47,8 +47,34 @@ def _get_employees() -> dict[str, dict]:
     return _employees_by_id
 
 
-# ── In-memory ticket store ────────────────────────────────────────────────────
+# ── Ticket store (in-memory + file-backed) ───────────────────────────────────
+_TICKETS_FILE = _ROOT / "data" / "tickets.jsonl"
 _tickets: dict[str, dict] = {}
+
+
+def _load_tickets() -> None:
+    if not _TICKETS_FILE.exists():
+        return
+    for line in _TICKETS_FILE.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line:
+            try:
+                t = json.loads(line)
+                _tickets[t["ticket_id"]] = t
+            except (json.JSONDecodeError, KeyError):
+                pass
+
+
+def _persist_ticket(ticket: dict) -> None:
+    try:
+        _TICKETS_FILE.parent.mkdir(exist_ok=True)
+        with _TICKETS_FILE.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(ticket, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
+_load_tickets()
 
 # ── Internal search helpers ───────────────────────────────────────────────────
 
@@ -247,12 +273,14 @@ def create_mock_hr_ticket(
     ticket_id   = f"TKT-{uuid.uuid4().hex[:8].upper()}"
     now         = datetime.now(UTC).isoformat()
     assigned_to = _ASSIGNEE.get(ticket_type, "people-ops@acmecorp.com")
-    _tickets[ticket_id] = {
+    ticket = {
         "ticket_id": ticket_id, "employee_id": employee_id,
         "ticket_type": ticket_type, "subject": subject, "description": description,
         "requested_start_date": requested_start_date, "requested_end_date": requested_end_date,
         "status": "created", "created_at": now, "assigned_to": assigned_to,
     }
+    _tickets[ticket_id] = ticket
+    _persist_ticket(ticket)
     return {"ticket_id": ticket_id, "status": "created", "created_at": now, "assigned_to": assigned_to}
 
 
