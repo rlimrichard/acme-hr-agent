@@ -50,7 +50,7 @@ body {
   grid-template-rows: auto 1fr auto;
   height: 100vh;
   height: 100dvh;
-  max-width: 780px;
+  max-width: 1170px;
   margin: 0 auto;
   border-left: 1px solid var(--line);
   border-right: 1px solid var(--line);
