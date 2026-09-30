@@ -101,8 +101,16 @@ def test_pto_employee_not_found_escalates() -> None:
 
 # ── Remote work workflow ──────────────────────────────────────────────────────
 
-def test_remote_work_ticket_created_immediately() -> None:
+def test_remote_work_requires_confirmation_before_ticket() -> None:
+    # Without confirmed=True, no ticket should be created and confirmation is requested
     response = _agent().answer("Can I work from Spain for 6 weeks?", "EMP-001")
+    assert response.requires_confirmation is True
+    assert "create_mock_hr_ticket" not in tool_names(response)
+
+
+def test_remote_work_ticket_created_when_confirmed() -> None:
+    # With confirmed=True, ticket should be created
+    response = _agent().answer("Can I work from Spain for 6 weeks?", "EMP-001", confirmed=True)
     assert response.requires_confirmation is False
     assert "create_mock_hr_ticket" in tool_names(response)
 
