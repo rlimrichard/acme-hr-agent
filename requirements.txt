@@ -11,6 +11,8 @@ reportlab>=4.0.0
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 httpx>=0.27.0
+python-multipart>=0.0.9  # required by FastAPI to parse Form(...) data (admin login)
+itsdangerous>=2.2.0      # signed session cookies for /admin auth
 # Agent layer
 openai>=1.0.0
 python-dotenv>=1.0.0

@@ -20,6 +20,19 @@ themeToggle.addEventListener('click', () => {
   applyTheme(htmlEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
 });
 
+// ---- Auth helper ----
+// All /admin/* API calls are session-protected server-side. If the session
+// has expired (8h) or was never established, the server returns 401 --
+// bounce to the login page rather than rendering an empty/broken panel.
+async function fetchJSON(url) {
+  const res = await fetch(url);
+  if (res.status === 401) {
+    window.location.href = '/admin/login';
+    throw new Error('unauthenticated');
+  }
+  return res.json();
+}
+
 // ---- Tabs ----
 const tabConversations = document.getElementById('tab-conversations');
 const tabTickets       = document.getElementById('tab-tickets');
@@ -143,14 +156,14 @@ async function loadConversations(date) {
   setStatus(entriesList, 'Loading…');
   entryCount.textContent = '';
   try {
-    const data = await fetch(`/admin/logs/${encodeURIComponent(date)}`).then((r) => r.json());
+    const data = await fetchJSON(`/admin/logs/${encodeURIComponent(date)}`);
     renderConversations(data.entries || []);
   } catch { setStatus(entriesList, 'Failed to load entries.'); }
 }
 
 async function initConversations() {
   try {
-    const data = await fetch('/admin/logs').then((r) => r.json());
+    const data = await fetchJSON('/admin/logs');
     const dates = data.dates || [];
     dateSelect.textContent = '';
     if (!dates.length) {
@@ -257,7 +270,7 @@ async function loadTickets() {
   setStatus(ticketsList, 'Loading…');
   ticketCount.textContent = '';
   try {
-    const data = await fetch('/admin/tickets').then((r) => r.json());
+    const data = await fetchJSON('/admin/tickets');
     const tickets = data.tickets || [];
     ticketsList.textContent = '';
     if (!tickets.length) { setStatus(ticketsList, 'No tickets have been created yet.'); return; }
