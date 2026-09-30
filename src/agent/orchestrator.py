@@ -116,11 +116,16 @@ class HRAgent:
         compliance = self._invoke(response, "check_policy_compliance", employee_id=employee_id, action=query,
                                   context=f"remote status: {profile.get('remote_status', 'unknown')}")
         self._sources(response, policies["chunks"])
-        ticket = self._invoke(response, "create_mock_hr_ticket", employee_id=employee_id, ticket_type="general_inquiry",
-                              subject="Remote-work eligibility request", description=query)
+        if confirmed:
+            ticket = self._invoke(response, "create_mock_hr_ticket", employee_id=employee_id, ticket_type="general_inquiry",
+                                  subject="Remote-work eligibility request", description=query)
+            ticket_text = f" A mock HR approval ticket {ticket['ticket_id']} has been created."
+        else:
+            ticket_text = ""
+            response.requires_confirmation = True
         response.answer = (f"[OFFICIAL POLICY] {compliance['verdict']} {compliance['conditions']} "
-                           f"The cited remote-work and security policies should guide the review. "
-                           f"A mock HR approval ticket {ticket['ticket_id']} has been created.")
+                           f"The cited remote-work and security policies should guide the review."
+                           f"{ticket_text}")
         response.escalated = True
         return response
 

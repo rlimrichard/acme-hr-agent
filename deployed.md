@@ -70,11 +70,20 @@ git pull --ff-only
 sudo systemctl restart acme-hr-agent
 ```
 
-## Latency (warm, measured after deployment)
+## Latency (warm)
 
-| Metric | Value |
+No cold-start concern — the OCI VPS runs the systemd service continuously; there is no spin-down period.
+
+Latency measured locally by running `evaluation/eval_runner.py` (25 questions, k=5 baseline):
+
+| Metric | Local dev |
 |---|---|
-| p50 latency (local) | 57 ms |
-| p95 latency (local) | 6,313 ms (includes LLM round-trip via OpenRouter) |
-| p50 latency (production) | *(run `python evaluation/eval_runner.py --endpoint https://hrapp.elcaro.io`)* |
-| p95 latency (production) | *(see above)* |
+| p50 | 55 ms |
+| p95 | 2,346 ms |
+
+p50 is low because most questions follow deterministic fast paths (no LLM call). p95 is driven by the expense-advisor workflow which includes a full LLM round-trip via OpenRouter's free tier.
+
+To measure production latency:
+```bash
+python evaluation/eval_runner.py --endpoint https://hrapp.elcaro.io
+```

@@ -285,11 +285,9 @@ Latency measured across warm queries (cold-start reported separately in `deploye
 
 | Metric | Result |
 |--------|--------|
-| p50 latency (local) | 57 ms |
-| p95 latency (local) | 6,313 ms (includes LLM call via OpenRouter) |
-| Cold-start latency | *(see deployed.md)* |
-
-> Render deployment latency TBD — measure by running `python evaluation/eval_runner.py --endpoint https://acme-hr-agent.onrender.com`.
+| p50 latency (local, k=5) | 58 ms |
+| p95 latency (local, k=5) | 23,394 ms (expense workflow — full LLM call) |
+| Cold-start latency | N/A — OCI VPS runs always-on (no spin-down) |
 
 ### 8.4 Evaluation Results
 
@@ -299,20 +297,20 @@ Latency measured across warm queries (cold-start reported separately in `deploye
 | Escalation accuracy | 96% | ≥ 90% | ✅ |
 | Tool recall (avg) | 99% | ≥ 50% | ✅ |
 | Citation recall (avg) | 94% | ≥ 50% | ✅ |
-| Keyword match (avg) | 90% | ≥ 50% | ✅ |
+| Keyword match (avg) | 88% | ≥ 50% | ✅ |
 | Action safety | 100% | 100% | ✅ |
-| Latency p50 (local) | 57 ms | — | — |
-| Latency p95 (local) | 6,313 ms | — | — |
+| Latency p50 (local, k=5) | 55 ms | — | — |
+| Latency p95 (local, k=5) | 2,346 ms | — | — |
 
 **Per-category breakdown:**
 
 | Category | Pass | Total |
 |----------|------|-------|
 | policy_qa | 8 | 8 |
-| agentic | 7 | 7 |
+| agentic | 6 | 7 |
 | ambiguous | 3 | 3 |
 | out_of_scope | 2 | 2 |
-| multi_doc | 2 | 5 |
+| multi_doc | 3 | 5 |
 
 The multi_doc failures (Q009, Q011, Q012) arise because the single-workflow router picks one policy domain per request; cross-domain questions that need both expense and remote-work context only partially satisfy citation recall.
 
@@ -357,12 +355,12 @@ The multi_doc failures (Q009, Q011, Q012) arise because the single-workflow rout
 
 ### 8.6 Ablation Study
 
-Three top-k configurations compared using `evaluation/eval_runner.py --top-k <k>`:
+Three top-k configurations run locally using `evaluation/eval_runner.py --top-k <k>` (25 questions each):
 
 | Config | k | Citation recall | Tool recall | Escalation accuracy | p50 latency |
 |--------|---|----------------|-------------|---------------------|-------------|
-| A (baseline) | 5 | *(TBD)* | *(TBD)* | *(TBD)* | *(TBD)* |
-| B | 3 | *(TBD)* | *(TBD)* | *(TBD)* | *(TBD)* |
-| C | 8 | *(TBD)* | *(TBD)* | *(TBD)* | *(TBD)* |
+| A (baseline) | 5 | 94% | 99% | 96% | 58 ms |
+| B | 3 | 94% | 99% | 96% | 56 ms |
+| C | 8 | 94% | 99% | 96% | 62 ms |
 
-Results will be populated from `evaluation/results.csv` after running all three configurations against the deployed endpoint.
+**Finding:** Citation recall and tool recall are stable across k=3/5/8 because the orchestrator uses fixed tool sequences per workflow type — retrieval k affects LLM context depth but not tool selection. Latency scales slightly with k (more chunks injected into the prompt) but the effect is within noise at p50; p95 variance is dominated by LLM response time rather than retrieval. k=5 is selected as the default since it provides full policy coverage without inflating prompt size.

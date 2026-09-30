@@ -26,5 +26,8 @@ Thumbs.db
 # Chat logs (one file per day, created at runtime)
 logs/
 
+# Runtime ticket store (populated at runtime, not committed)
+data/tickets.jsonl
+
 # Claude
 .claude/
