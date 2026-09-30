@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin sign in — Acme HR Agent</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    .login-shell {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--paper);
+      padding: 20px;
+    }
+    .login-card {
+      width: 100%;
+      max-width: 360px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      box-shadow: 0 2px 10px rgba(46, 38, 32, 0.08);
+      text-align: center;
+    }
+    .login-avatar {
+      width: 48px; height: 48px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: var(--warm-soft);
+      color: var(--warm);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .login-avatar svg { width: 24px; height: 24px; }
+    .login-card h1 {
+      font-family: 'IBM Plex Serif', serif;
+      font-weight: 500;
+      font-size: 1.25rem;
+      margin: 0 0 6px;
+    }
+    .login-card p.login-sub {
+      color: var(--ink-soft);
+      font-size: 0.88rem;
+      margin: 0 0 24px;
+    }
+    .login-field {
+      text-align: left;
+      margin-bottom: 14px;
+    }
+    .login-field label {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--ink-soft);
+      margin-bottom: 5px;
+    }
+    .login-field input {
+      width: 100%;
+      font-family: inherit;
+      font-size: 0.95rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 9px 11px;
+      background: var(--paper);
+      color: var(--ink);
+    }
+    .login-field input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .login-submit {
+      width: 100%;
+      border: none;
+      background: var(--ink);
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 10px;
+      font-size: 0.92rem;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+    .login-submit:hover { opacity: 0.92; }
+    .login-error {
+      background: var(--warn-soft);
+      color: var(--warn);
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+      text-align: left;
+    }
+    .login-back {
+      display: inline-block;
+      margin-top: 18px;
+      font-size: 0.82rem;
+      color: var(--ink-faint);
+      text-decoration: none;
+    }
+    .login-back:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="login-shell">
+    <div class="login-card">
+      <div class="login-avatar" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <circle cx="12" cy="14.5" r="1.4" stroke="currentColor" stroke-width="1.4"/>
+        </svg>
+      </div>
+      <h1>Admin sign in</h1>
+      <p class="login-sub">This area contains employee data. Please sign in to continue.</p>
+
+      <div class="login-error" id="login-error" hidden></div>
+
+      <form id="login-form">
+        <div class="login-field">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" autocomplete="username" required />
+        </div>
+        <div class="login-field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" autocomplete="current-password" required />
+        </div>
+        <button type="submit" class="login-submit" id="login-submit">Sign in</button>
+      </form>
+
+      <a class="login-back" href="/">← Back to chat</a>
+    </div>
+  </div>
+
+  <script src="/static/admin-login.js"></script>
+</body>
+</html>

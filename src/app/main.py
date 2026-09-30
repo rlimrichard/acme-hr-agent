@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import secrets
 import subprocess
 import sys
 import time
@@ -13,15 +14,65 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import httpx
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pydantic import BaseModel, Field
 
 from src.agent.orchestrator import HRAgent, MCPClient
 
 _mcp_proc: subprocess.Popen | None = None
+
+# ── ADDED: admin authentication ───────────────────────────────────────────
+# Protects /admin and /admin/* (logs, tickets) -- previously these had no
+# authentication at all, which is a real problem once deployed to a public
+# URL (they expose employee chat history and HR tickets).
+#
+# ADMIN_PASSWORD has NO default -- if it isn't set, login is impossible
+# (fails closed) rather than falling back to a guessable default password.
+# SESSION_SECRET falls back to a random value generated at process start if
+# not set in the environment; this means existing sessions are invalidated
+# on every restart, which is an acceptable tradeoff for "fails safe" over
+# "fails with a hardcoded secret committed to the repo."
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")  # required — see login handler below
+_SESSION_SECRET = os.getenv("SESSION_SECRET") or secrets.token_hex(32)
+if not os.getenv("SESSION_SECRET"):
+    print("WARNING: SESSION_SECRET not set in environment — using a random "
+          "value for this process only. Admin sessions will not survive a "
+          "restart. Set SESSION_SECRET in .env / production env vars to "
+          "avoid this.")
+if not ADMIN_PASSWORD:
+    print("WARNING: ADMIN_PASSWORD not set — the admin panel login is "
+          "disabled until it is set (login will always fail).")
+
+_ADMIN_COOKIE_NAME = "admin_session"
+_ADMIN_SESSION_MAX_AGE = 60 * 60 * 8  # 8 hours
+_admin_serializer = URLSafeTimedSerializer(_SESSION_SECRET, salt="admin-session")
+
+
+def _is_admin_authenticated(request: Request) -> bool:
+    token = request.cookies.get(_ADMIN_COOKIE_NAME)
+    if not token:
+        return False
+    try:
+        _admin_serializer.loads(token, max_age=_ADMIN_SESSION_MAX_AGE)
+        return True
+    except (BadSignature, SignatureExpired):
+        return False
+
+
+def require_admin_api(request: Request) -> None:
+    """Dependency for JSON admin endpoints (logs, tickets) -- returns a
+    clean 401 so admin.js's fetch calls can detect it and redirect to
+    /admin/login, rather than the page silently rendering empty data."""
+    if not _is_admin_authenticated(request):
+        raise HTTPException(status_code=401, detail="Not authenticated")
 
 _LOG_DIR = Path(__file__).parents[2] / "logs"
 
@@ -177,12 +228,50 @@ def get_document(filename: str) -> FileResponse:
 def docs_page() -> FileResponse:
     return FileResponse(STATIC_DIR / "documents.html")
 
+# ── ADDED: admin login/logout ─────────────────────────────────────────────
+@app.get("/admin/login")
+def admin_login_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "admin-login.html")
+
+
+@app.post("/admin/login")
+def admin_login_submit(request: Request, username: str = Form(...), password: str = Form(...)) -> Response:
+    valid = (
+        ADMIN_PASSWORD is not None
+        and secrets.compare_digest(username, ADMIN_USERNAME)
+        and secrets.compare_digest(password, ADMIN_PASSWORD)
+    )
+    if not valid:
+        return JSONResponse(status_code=401, content={"ok": False})
+
+    token = _admin_serializer.dumps({"u": username})
+    response = JSONResponse(content={"ok": True})
+    response.set_cookie(
+        _ADMIN_COOKIE_NAME, token,
+        max_age=_ADMIN_SESSION_MAX_AGE,
+        httponly=True,
+        samesite="lax",
+        secure=(request.url.scheme == "https"),  # auto: plain http locally, forced https in prod (behind nginx/TLS)
+    )
+    return response
+
+
+@app.get("/admin/logout")
+def admin_logout() -> Response:
+    response = RedirectResponse(url="/admin/login", status_code=303)
+    response.delete_cookie(_ADMIN_COOKIE_NAME)
+    return response
+
+
+# ── CHANGED: all four routes below now require an authenticated admin session ──
 @app.get("/admin")
-def admin_page() -> FileResponse:
+def admin_page(request: Request) -> Response:
+    if not _is_admin_authenticated(request):
+        return RedirectResponse(url="/admin/login", status_code=303)
     return FileResponse(STATIC_DIR / "admin.html")
 
 @app.get("/admin/logs")
-def list_log_dates() -> dict[str, Any]:
+def list_log_dates(_admin: None = Depends(require_admin_api)) -> dict[str, Any]:
     if not _LOG_DIR.exists():
         return {"dates": []}
     dates = sorted(
@@ -192,7 +281,7 @@ def list_log_dates() -> dict[str, Any]:
     return {"dates": dates}
 
 @app.get("/admin/tickets")
-def list_tickets() -> dict[str, Any]:
+def list_tickets(_admin: None = Depends(require_admin_api)) -> dict[str, Any]:
     if not _TICKETS_FILE.exists():
         return {"tickets": []}
     tickets = []
@@ -206,7 +295,7 @@ def list_tickets() -> dict[str, Any]:
     return {"tickets": list(reversed(tickets))}
 
 @app.get("/admin/logs/{date}")
-def get_log_entries(date: str) -> dict[str, Any]:
+def get_log_entries(date: str, _admin: None = Depends(require_admin_api)) -> dict[str, Any]:
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
         raise HTTPException(status_code=400, detail="Invalid date format")
     log_file = _LOG_DIR / f"{date}.jsonl"
