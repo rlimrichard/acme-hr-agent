@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 
 import src.agent.orchestrator as orchestrator
 from src.agent.orchestrator import HRAgent
-from src.mcp.server import app
+from src.mcp.server import _prefer_exact_section_matches, app
 
 
 class LocalMCPClient:
@@ -32,6 +32,15 @@ def test_discovers_eight_tools() -> None:
     response = TestClient(app).get("/tools")
     assert response.status_code == 200
     assert len(response.json()["tools"]) == 8
+
+
+def test_exact_section_phrase_is_preferred_over_close_semantic_match() -> None:
+    chunks = [
+        {"section": "Paid Time Off > PTO Usage", "score": 0.90},
+        {"section": "Paid Time Off > Sick Leave", "score": 0.80},
+    ]
+    ranked = _prefer_exact_section_matches(chunks, "Is sick leave separate from vacation?")
+    assert ranked[0]["section"].endswith("Sick Leave")
 
 
 # ── _kind() routing ───────────────────────────────────────────────────────────
@@ -140,6 +149,13 @@ def test_remote_work_requires_confirmation_before_ticket() -> None:
     response = _agent().answer("Can I work from Spain for 6 weeks?", "EMP-001")
     assert response.requires_confirmation is True
     assert "create_mock_hr_ticket" not in tool_names(response)
+
+
+def test_remote_retrieval_leads_with_employee_question() -> None:
+    query = "Can I work from Canada for two weeks?"
+    response = _agent().answer(query, "EMP-001")
+    search = next(step for step in response.tool_trace if step["tool"] == "search_policy_documents")
+    assert search["args"]["query"].startswith(query)
 
 
 def test_remote_work_ticket_created_when_confirmed() -> None:

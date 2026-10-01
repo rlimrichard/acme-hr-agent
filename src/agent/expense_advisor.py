@@ -226,9 +226,10 @@ def run(employee_id: str, query: str) -> dict[str, Any]:
     # Enrich the search query with employee context so retrieval is role-aware
     amount = _extract_amount(query)
     enriched = (
-        f"{query} expense reimbursement home office equipment allowance limit "
-        f"role {employee['role']} {employee['remote_status']}"
-        + (f" amount {amount}" if amount else "")
+        f"{query}\nPolicy focus: expense reimbursement, business purpose, receipts, "
+        "allowances, and reimbursement limits. "
+        f"Employee context: role {employee['role']}; {employee['remote_status']} worker."
+        + (f" Requested amount: {amount}." if amount else "")
     )
     policy_result = tool("search_policy_documents", search_policy_documents,
                          query=enriched, top_k=5)

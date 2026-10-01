@@ -109,6 +109,26 @@ def _lexical_search(query: str, top_k: int, doc_id: str | None = None) -> list[d
     return sorted(matches, key=lambda x: x["score"], reverse=True)[:top_k]
 
 
+def _prefer_exact_section_matches(chunks: list[dict[str, Any]], query: str) -> list[dict[str, Any]]:
+    """Promote policy sections named explicitly in the employee's question.
+
+    Semantic retrieval remains the primary ranking; this only breaks close ties
+    in favour of an exact multi-word section phrase such as ``sick leave``.
+    """
+    words = re.findall(r"[a-zA-Z]{3,}", query.lower())
+    phrases = {" ".join(words[index:index + 2]) for index in range(len(words) - 1)}
+
+    def exact_matches(chunk: dict[str, Any]) -> int:
+        section = chunk.get("section", "").lower()
+        return sum(phrase in section for phrase in phrases)
+
+    return sorted(
+        chunks,
+        key=lambda chunk: (exact_matches(chunk), chunk.get("score", 0)),
+        reverse=True,
+    )
+
+
 def _retrieve(query: str, top_k: int = 5, doc_id: str | None = None) -> list[dict[str, Any]]:
     """Return chunks with both 'distance' and 'score' present, falling back to lexical search."""
     try:
@@ -117,9 +137,9 @@ def _retrieve(query: str, top_k: int = 5, doc_id: str | None = None) -> list[dic
         for c in chunks:
             c.setdefault("score", round(1.0 - c.get("distance", 0), 4))
             c.setdefault("snippet", c["text"][:180])
-        return chunks
+        return _prefer_exact_section_matches(chunks, query)
     except Exception:
-        return _lexical_search(query, top_k, doc_id)
+        return _prefer_exact_section_matches(_lexical_search(query, top_k, doc_id), query)
 
 
 # ── Tool 1: search_policy_documents ───────────────────────────────────────────

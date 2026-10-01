@@ -149,8 +149,8 @@ class HRAgent:
             response,
             "search_policy_documents",
             query=(
-                f"{query} PTO approval process, blackout periods, leave accrual, "
-                "vacation and sick leave"
+                f"{query}\nPolicy focus: PTO approval, blackout periods, leave accrual, "
+                "vacation, personal time, and sick leave."
             ),
             top_k=5,
         )
@@ -208,7 +208,15 @@ class HRAgent:
     def _remote(self, query: str, employee_id: str, confirmed: bool) -> AgentResponse:
         response = AgentResponse(answer="")
         profile = self._invoke(response, "lookup_employee_profile", employee_id=employee_id)
-        policies = self._invoke(response, "search_policy_documents", query="remote work international location tax data security approval", top_k=5)
+        policies = self._invoke(
+            response,
+            "search_policy_documents",
+            query=(
+                f"{query}\nPolicy focus: remote-work eligibility, work location, international "
+                "arrangements, tax, data security, and approval requirements."
+            ),
+            top_k=5,
+        )
         compliance = self._invoke(response, "check_policy_compliance", employee_id=employee_id, action=query,
                                   context=f"remote status: {profile.get('remote_status', 'unknown')}")
         self._sources(response, policies["chunks"])
@@ -271,7 +279,12 @@ class HRAgent:
         """Answer a read-only HR policy question using retrieved evidence."""
         response = AgentResponse(answer="")
         profile = self._invoke(response, "lookup_employee_profile", employee_id=employee_id)
-        policies = self._invoke(response, "search_policy_documents", query=query, top_k=5)
+        policies = self._invoke(
+            response,
+            "search_policy_documents",
+            query=f"{query}\nPolicy focus: applicable Acme Corp HR policy and employee conduct rules.",
+            top_k=5,
+        )
         compliance = self._invoke(
             response,
             "check_policy_compliance",
