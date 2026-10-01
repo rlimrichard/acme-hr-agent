@@ -212,6 +212,23 @@ def test_deterministic_remote_cases_require_confirmation(monkeypatch, query, emp
     assert "create_mock_hr_ticket" not in tool_names(response)
 
 
+@pytest.mark.parametrize("query", [
+    "Can I work for 4 months from Thailand?",
+    "Can I work for three months from Pakistan?",
+    "Could I work temporarily from Germany while visiting family?",
+])
+def test_country_based_work_arrangements_use_remote_workflow(monkeypatch, query) -> None:
+    """Location phrases must remain safe when the LLM router is unavailable."""
+    _force_deterministic_routing(monkeypatch)
+    response = _agent().answer(query, "EMP-002")
+    assert tool_names(response) == [
+        "lookup_employee_profile", "search_policy_documents", "check_policy_compliance",
+    ]
+    assert response.escalated is True
+    assert response.requires_confirmation is True
+    assert response.citations[0]["doc_id"] == "POL-RW-001"
+
+
 # ── Expense workflow ───────────────────────────────────────────────────────────
 
 def test_expense_advisor_returns_policy_based_decision() -> None:

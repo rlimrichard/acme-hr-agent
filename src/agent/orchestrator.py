@@ -101,7 +101,13 @@ class HRAgent:
             return "policy"
         if any(word in lowered for word in ("pto", "time off", "leave", "vacation", "days off", "day off", "take off")) or re.search(r"\b\d+\s+(?:days?|weeks?)\s+off\b", lowered):
             return "pto"
-        if any(word in lowered for word in ("remote", "work from", "abroad", "spain", "another state", "international")):
+        # Also cover natural phrasing such as "can I work for four months from
+        # Thailand?".  The LLM router may be unavailable, so this fallback
+        # needs to recognize a work arrangement followed by a location.
+        if (
+            any(word in lowered for word in ("remote", "work from", "abroad", "spain", "another state", "international"))
+            or re.search(r"\bwork(?:ing)?\b[^?.!]{0,80}\bfrom\b", lowered)
+        ):
             return "remote"
         if any(word in lowered for word in (
             "expense", "reimburse", "standing desk", "chair", "home office",
