@@ -67,7 +67,10 @@ class HRAgent:
             return "pto"
         if any(word in lowered for word in ("remote", "work from", "abroad", "spain", "another state", "international")):
             return "remote"
-        if any(word in lowered for word in ("expense", "reimburse", "standing desk", "chair", "home office")):
+        if any(word in lowered for word in (
+            "expense", "reimburse", "standing desk", "chair", "home office",
+            "per diem", "meal", "travel", "flight", "hotel", "mileage",
+        )):
             return "expense"
         return None
 
