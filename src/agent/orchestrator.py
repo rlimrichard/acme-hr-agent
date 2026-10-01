@@ -69,28 +69,19 @@ class HRAgent:
             return "expense"
         return None
 
-    # Patterns that indicate a pure informational question ("what's my
-    # balance", "how many days do I have") rather than an actual request to
-    # take time off. Used to avoid drafting a manager email for every PTO-
-    # related question -- previously this fired even for balance checks,
-    # producing a nonsensical "I would like to request PTO: what's my
-    # balance?" draft every time. Known limitation: a combined question like
-    # "do I have enough to take 5 days off?" is both informational and a
-    # real request -- this heuristic treats it as informational (skips the
-    # email) since "do i have" matches; acceptable tradeoff for a course
-    # project, worth revisiting if that phrasing turns out to matter.
-    _INFO_QUERY_PATTERNS = (
-        r"\bwhat'?s?\s+(is\s+)?my\b.*\bbalance\b",
-        r"\bbalance\b",
-        r"\bhow many\b.*\b(days|pto)\b",
-        r"\bdo i have\b",
-        r"\bcheck\b.*\bpto\b",
+    # A policy question must never generate a manager email merely because it
+    # mentions PTO or leave.  Draft only when the employee explicitly asks to
+    # draft or submit a request.
+    _EMAIL_DRAFT_PATTERNS = (
+        r"\b(?:draft|write|prepare)\s+(?:an?\s+)?(?:email|pto|leave|time[ -]off)\b",
+        r"\b(?:submit|file|send)\s+(?:an?\s+)?(?:pto|leave|time[ -]off)?\s*request\b",
+        r"\b(?:i(?: would|'d) like to|i want to)\s+(?:request|take)\b",
     )
 
     @classmethod
-    def _is_informational_pto_query(cls, query: str) -> bool:
+    def _should_draft_pto_email(cls, query: str) -> bool:
         lowered = query.lower()
-        return any(re.search(p, lowered) for p in cls._INFO_QUERY_PATTERNS)
+        return any(re.search(p, lowered) for p in cls._EMAIL_DRAFT_PATTERNS)
 
     def answer(self, query: str, employee_id: str, confirmed: bool = False) -> AgentResponse:
         kind = self._kind(query)
@@ -120,9 +111,7 @@ class HRAgent:
         if requested is not None:
             amount_text += f"; the request appears to require about {requested:g} days, so it is {'within' if enough else 'above'} that balance"
 
-        if self._is_informational_pto_query(query):
-            email_block = ""
-        else:
+        if self._should_draft_pto_email(query):
             email = self._invoke(response, "draft_hr_email", employee_id=employee_id,
                                  email_type="pto_request",
                                  details=f"I would like to request PTO: {query}. Please let me know whether coverage and timing permit approval.")
@@ -133,6 +122,8 @@ class HRAgent:
                 f"Subject: {email.get('subject', 'PTO Request')}\n\n"
                 f"{email.get('body', '')}"
             )
+        else:
+            email_block = ""
         response.answer = (
             f"[OFFICIAL POLICY] {amount_text}. PTO requires direct-manager approval and may be limited "
             f"by team coverage or a designated blackout period. {compliance['verdict']}"
