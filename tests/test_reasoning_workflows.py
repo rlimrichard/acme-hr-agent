@@ -58,6 +58,8 @@ def test_general_policy_query_retrieves_before_answering() -> None:
         "lookup_employee_profile", "search_policy_documents", "check_policy_compliance",
     ]
     assert response.citations
+    assert "must be declined" in response.answer
+    assert response.escalated is True
 
 
 # ── Response structure ────────────────────────────────────────────────────────

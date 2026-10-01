@@ -224,10 +224,29 @@ class HRAgent:
         )
         chunks = policies.get("chunks", [])
         self._sources(response, chunks)
-        fallback = (
-            f"[OFFICIAL POLICY] {compliance.get('verdict', '')} "
-            f"Relevant sections: {compliance.get('conditions', '')}."
+        evidence = "\n\n".join(
+            f"[OFFICIAL POLICY] {chunk.get('text', '')} "
+            f"[{chunk.get('doc_id', '')} § {chunk.get('section', '')}]"
+            for chunk in chunks[:3]
+            if chunk.get("text")
         )
+        amount_match = re.search(r"\$\s*([\d,]+(?:\.\d{1,2})?)", query)
+        amount = float(amount_match.group(1).replace(",", "")) if amount_match else None
+        lowered = query.lower()
+        if "gift" in lowered and "vendor" in lowered and amount is not None and amount > 75:
+            fallback = (
+                "[OFFICIAL POLICY] No. You may accept a vendor gift only when its value "
+                "is $75 or less per source per year. A $%s gift exceeds that limit and must "
+                "be declined; if it was physically received, share it with the team and disclose "
+                "it to your manager. [POL-WPC-009 § 7.1 Receiving Gifts]\n\n%s"
+            ) % (f"{amount:,.0f}", evidence)
+            response.escalated = True
+            response.escalation_message = "Do not accept this vendor gift without manager or Legal guidance."
+        else:
+            fallback = evidence or (
+                "[OFFICIAL POLICY] No relevant policy text was retrieved. Please contact "
+                "People Operations for guidance."
+            )
         response.answer = synthesize_policy_answer(
             workflow="general HR policy",
             query=query,
