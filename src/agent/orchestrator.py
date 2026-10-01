@@ -85,8 +85,14 @@ class HRAgent:
         policies = self._invoke(response, "search_policy_documents", query="PTO approval process, blackout periods, and leave accrual", top_k=5)
         compliance = self._invoke(response, "check_policy_compliance", employee_id=employee_id, action=query, context="PTO and leave request")
         self._sources(response, policies["chunks"])
-        days = re.search(r"(\d+(?:\.\d+)?)\s*(?:day|week)", query.lower())
-        requested = float(days.group(1)) * (5 if "week" in query.lower() else 1) if days else None
+        # Captures the unit from the SAME match as the number, rather than a
+        # separate "week" in query.lower() check -- the old version wrongly
+        # treated "3 days off next week" as 3 WEEKS, because "week" appears
+        # later in the sentence as a time reference, unrelated to the
+        # requested amount. Verified: "Can I take 3 days off next week?"
+        # now correctly computes 3.0, not 15.0.
+        days = re.search(r"(\d+(?:\.\d+)?)\s*(day|week)s?\b", query.lower())
+        requested = float(days.group(1)) * (5 if days.group(2) == "week" else 1) if days else None
         enough = requested is None or balance.get("pto_balance_days", 0) >= requested
         email = self._invoke(response, "draft_hr_email", employee_id=employee_id,
                              email_type="pto_request",
