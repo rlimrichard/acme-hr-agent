@@ -21,6 +21,7 @@ class AgentResponse:
     escalated: bool = False
     escalation_message: str | None = None
     requires_confirmation: bool = False
+    llm_reasoning: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
         return self.__dict__.copy()
@@ -101,14 +102,35 @@ class HRAgent:
     def answer(self, query: str, employee_id: str, confirmed: bool = False) -> AgentResponse:
         # Let the reasoning model classify first.  The local router is retained
         # only for availability and validation failures from the provider.
-        kind = classify_workflow(query) or self._kind(query)
+        llm_kind = classify_workflow(query)
+        kind = llm_kind or self._kind(query)
         if kind == "pto":
-            return self._pto(query, employee_id)
-        if kind == "remote":
-            return self._remote(query, employee_id, confirmed)
-        if kind == "expense":
-            return self._expense(query, employee_id)
-        return self._policy(query, employee_id)
+            response = self._pto(query, employee_id)
+        elif kind == "remote":
+            response = self._remote(query, employee_id, confirmed)
+        elif kind == "expense":
+            response = self._expense(query, employee_id)
+        else:
+            response = self._policy(query, employee_id)
+        response.llm_reasoning = {
+            "routing": {
+                "prompt_type": "workflow-classification-v1",
+                "model": os.getenv("OPENROUTER_MODEL", "qwen/qwen3.8-27b:free"),
+                "selected_workflow": kind,
+                "route_source": "llm" if llm_kind else "deterministic fallback",
+                "prompt_fields": ["employee question"],
+            },
+            "answer_generation": {
+                "prompt_type": "grounded-policy-answer-v1",
+                "prompt_fields": [
+                    "retrieved policy excerpts",
+                    "compliance assessment",
+                    "minimum employee context",
+                ],
+                "raw_prompt_stored": False,
+            },
+        }
+        return response
 
     def _pto(self, query: str, employee_id: str) -> AgentResponse:
         response = AgentResponse(answer="")

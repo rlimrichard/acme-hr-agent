@@ -547,6 +547,28 @@ body {
   word-break: break-word;
 }
 
+.log-card__reasoning {
+  margin-top: 10px;
+  border-top: 1px dashed var(--line);
+  padding-top: 8px;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+
+.log-card__reasoning summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.log-card__reasoning-content {
+  white-space: pre-line;
+  margin-top: 7px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+
 /* thinking indicator -- appears only while waiting on a real response */
 .thinking-dots { display: inline-flex; gap: 4px; padding: 3px 0; }
 .thinking-dots span {

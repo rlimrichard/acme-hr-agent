@@ -142,6 +142,29 @@ function buildConversationCard(entry) {
     card.appendChild(btn);
   }
 
+  const reasoning = entry.llm_reasoning || {};
+  const routing = reasoning.routing;
+  if (routing) {
+    const details = document.createElement('details');
+    details.className = 'log-card__reasoning';
+    const summary = document.createElement('summary');
+    summary.textContent = 'LLM reasoning summary (sanitized)';
+    details.appendChild(summary);
+
+    const content = document.createElement('div');
+    content.className = 'log-card__reasoning-content';
+    const fields = Array.isArray(routing.prompt_fields) ? routing.prompt_fields.join(', ') : 'not recorded';
+    const answerPrompt = reasoning.answer_generation?.prompt_type || 'not recorded';
+    content.textContent = `Routing prompt: ${routing.prompt_type || 'not recorded'}\n` +
+      `Model: ${routing.model || 'not recorded'}\n` +
+      `Route: ${routing.selected_workflow || 'not recorded'} (${routing.route_source || 'not recorded'})\n` +
+      `Routing prompt fields: ${fields}\n` +
+      `Answer prompt: ${answerPrompt}\n` +
+      'Raw LLM prompts and employee values are not stored.';
+    details.appendChild(content);
+    card.appendChild(details);
+  }
+
   return card;
 }
 

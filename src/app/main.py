@@ -89,6 +89,9 @@ def _log_chat(employee_id: str, query: str, result: dict[str, Any]) -> None:
             "answer": result.get("answer", ""),
             "escalated": result.get("escalated", False),
             "tool_steps": len(result.get("tool_trace", [])),
+            # Admin-only audit metadata.  This deliberately excludes raw LLM
+            # prompts, employee-profile values, policy text, and credentials.
+            "llm_reasoning": result.get("llm_reasoning", {}),
         }
         with log_file.open("a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")

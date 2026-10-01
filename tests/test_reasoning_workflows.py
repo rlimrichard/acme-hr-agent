@@ -58,6 +58,8 @@ def test_llm_route_is_used_before_deterministic_fallback(monkeypatch) -> None:
     assert tool_names(response) == [
         "lookup_employee_profile", "search_policy_documents", "check_policy_compliance",
     ]
+    assert response.llm_reasoning["routing"]["route_source"] == "llm"
+    assert response.llm_reasoning["routing"]["prompt_fields"] == ["employee question"]
 
 
 # ── General policy workflow ───────────────────────────────────────────────────
@@ -85,7 +87,7 @@ def test_vendor_paid_vacation_is_not_routed_to_pto() -> None:
 
 def test_response_as_dict_has_all_required_keys() -> None:
     d = _agent().answer("Can I take a day off?", "EMP-001").as_dict()
-    for key in ("answer", "citations", "snippets", "tool_trace", "escalated", "requires_confirmation"):
+    for key in ("answer", "citations", "snippets", "tool_trace", "escalated", "requires_confirmation", "llm_reasoning"):
         assert key in d, f"missing key: {key}"
 
 
