@@ -68,6 +68,29 @@ class HRAgent:
             return "expense"
         return None
 
+    # Patterns that indicate a pure informational question ("what's my
+    # balance", "how many days do I have") rather than an actual request to
+    # take time off. Used to avoid drafting a manager email for every PTO-
+    # related question -- previously this fired even for balance checks,
+    # producing a nonsensical "I would like to request PTO: what's my
+    # balance?" draft every time. Known limitation: a combined question like
+    # "do I have enough to take 5 days off?" is both informational and a
+    # real request -- this heuristic treats it as informational (skips the
+    # email) since "do i have" matches; acceptable tradeoff for a course
+    # project, worth revisiting if that phrasing turns out to matter.
+    _INFO_QUERY_PATTERNS = (
+        r"\bwhat'?s?\s+(is\s+)?my\b.*\bbalance\b",
+        r"\bbalance\b",
+        r"\bhow many\b.*\b(days|pto)\b",
+        r"\bdo i have\b",
+        r"\bcheck\b.*\bpto\b",
+    )
+
+    @classmethod
+    def _is_informational_pto_query(cls, query: str) -> bool:
+        lowered = query.lower()
+        return any(re.search(p, lowered) for p in cls._INFO_QUERY_PATTERNS)
+
     def answer(self, query: str, employee_id: str, confirmed: bool = False) -> AgentResponse:
         kind = self._kind(query)
         if kind is None:
@@ -85,28 +108,26 @@ class HRAgent:
         policies = self._invoke(response, "search_policy_documents", query="PTO approval process, blackout periods, and leave accrual", top_k=5)
         compliance = self._invoke(response, "check_policy_compliance", employee_id=employee_id, action=query, context="PTO and leave request")
         self._sources(response, policies["chunks"])
-        # Captures the unit from the SAME match as the number, rather than a
-        # separate "week" in query.lower() check -- the old version wrongly
-        # treated "3 days off next week" as 3 WEEKS, because "week" appears
-        # later in the sentence as a time reference, unrelated to the
-        # requested amount. Verified: "Can I take 3 days off next week?"
-        # now correctly computes 3.0, not 15.0.
         days = re.search(r"(\d+(?:\.\d+)?)\s*(day|week)s?\b", query.lower())
         requested = float(days.group(1)) * (5 if days.group(2) == "week" else 1) if days else None
         enough = requested is None or balance.get("pto_balance_days", 0) >= requested
-        email = self._invoke(response, "draft_hr_email", employee_id=employee_id,
-                             email_type="pto_request",
-                             details=f"I would like to request PTO: {query}. Please let me know whether coverage and timing permit approval.")
         amount_text = f"Your current balance is {balance.get('pto_balance_days', 0)} days"
         if requested is not None:
             amount_text += f"; the request appears to require about {requested:g} days, so it is {'within' if enough else 'above'} that balance"
-        email_block = (
-            f"\n\n── Draft email (not sent) ──\n"
-            f"To: {email.get('to', 'your manager')}\n"
-            f"Cc: {email.get('cc', '')}\n"
-            f"Subject: {email.get('subject', 'PTO Request')}\n\n"
-            f"{email.get('body', '')}"
-        )
+
+        if self._is_informational_pto_query(query):
+            email_block = ""
+        else:
+            email = self._invoke(response, "draft_hr_email", employee_id=employee_id,
+                                 email_type="pto_request",
+                                 details=f"I would like to request PTO: {query}. Please let me know whether coverage and timing permit approval.")
+            email_block = (
+                f"\n\n── Draft email (not sent) ──\n"
+                f"To: {email.get('to', 'your manager')}\n"
+                f"Cc: {email.get('cc', '')}\n"
+                f"Subject: {email.get('subject', 'PTO Request')}\n\n"
+                f"{email.get('body', '')}"
+            )
         response.answer = (
             f"[OFFICIAL POLICY] {amount_text}. PTO requires direct-manager approval and may be limited "
             f"by team coverage or a designated blackout period. {compliance['verdict']}"
