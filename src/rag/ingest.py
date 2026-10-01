@@ -245,8 +245,20 @@ def _parse_html(path: Path) -> str:
     """Convert HTML headings → markdown # syntax, strip remaining tags."""
     soup = BeautifulSoup(path.read_text(encoding="utf-8"), "html.parser")
     lines: list[str] = []
-    for el in soup.find_all(["h1", "h2", "h3", "p", "li", "br"]):
+    for el in soup.find_all(["h1", "h2", "h3", "p", "li", "br", "table"]):
         tag = el.name
+        if tag == "table":
+            rows = []
+            for row in el.find_all("tr"):
+                cells = [
+                    cell.get_text(" ", strip=True)
+                    for cell in row.find_all(["th", "td"])
+                ]
+                if cells:
+                    rows.append(" | ".join(cells))
+            if rows:
+                lines.append("\n".join(rows))
+            continue
         text = el.get_text(" ", strip=True)
         if not text:
             continue
