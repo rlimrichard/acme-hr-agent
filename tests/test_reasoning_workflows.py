@@ -122,6 +122,12 @@ def test_pto_answer_mentions_actual_balance() -> None:
     assert "14.5" in response.answer
 
 
+def test_sick_leave_question_uses_unified_pto_policy() -> None:
+    response = _agent().answer("Is sick leave separate from vacation?", "EMP-001")
+    assert "unified PTO bank" in response.answer
+    assert "separate sick-leave bucket" in response.answer
+
+
 def test_pto_employee_not_found_escalates() -> None:
     response = _agent().answer("Can I take a day off?", "EMP-999")
     assert response.escalated is True

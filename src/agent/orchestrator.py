@@ -145,7 +145,15 @@ class HRAgent:
         response = AgentResponse(answer="")
         profile = self._invoke(response, "lookup_employee_profile", employee_id=employee_id)
         balance = self._invoke(response, "check_pto_balance", employee_id=employee_id)
-        policies = self._invoke(response, "search_policy_documents", query="PTO approval process, blackout periods, and leave accrual", top_k=5)
+        policies = self._invoke(
+            response,
+            "search_policy_documents",
+            query=(
+                f"{query} PTO approval process, blackout periods, leave accrual, "
+                "vacation and sick leave"
+            ),
+            top_k=5,
+        )
         compliance = self._invoke(response, "check_policy_compliance", employee_id=employee_id, action=query, context="PTO and leave request")
         self._sources(response, policies["chunks"])
         days = re.search(r"(\d+(?:\.\d+)?)\s*(day|week)s?\b", query.lower())
@@ -168,10 +176,19 @@ class HRAgent:
             )
         else:
             email_block = ""
-        deterministic_answer = (
-            f"[OFFICIAL POLICY] {amount_text}. PTO requires direct-manager approval and may be limited "
-            f"by team coverage or a designated blackout period. {compliance['verdict']}"
-        )
+        lowered = query.lower()
+        if "sick" in lowered and any(word in lowered for word in ("vacation", "separate", "pto")):
+            deterministic_answer = (
+                "[OFFICIAL POLICY] No. Acme Corp uses one unified PTO bank: vacation, personal, "
+                "and sick time all draw from the same balance. There is no separate sick-leave bucket. "
+                "[POL-PTO-002 § 7.1 Use of PTO for Sick Leave] "
+                f"{amount_text}."
+            )
+        else:
+            deterministic_answer = (
+                f"[OFFICIAL POLICY] {amount_text}. PTO requires direct-manager approval and may be limited "
+                f"by team coverage or a designated blackout period. {compliance['verdict']}"
+            )
         response.answer = synthesize_policy_answer(
             workflow="PTO and leave",
             query=query,
