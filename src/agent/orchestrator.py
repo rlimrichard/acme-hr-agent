@@ -9,7 +9,12 @@ from typing import Any
 
 import httpx
 
-from src.agent.reasoner import classify_workflow, synthesize_policy_answer
+from src.agent.reasoner import (
+    build_routing_prompt,
+    build_synthesis_prompt,
+    classify_workflow,
+    synthesize_policy_answer,
+)
 
 
 @dataclass
@@ -62,6 +67,29 @@ class HRAgent:
                 seen.add(key)
 
     @staticmethod
+    def _record_answer_prompt(
+        response: AgentResponse,
+        *,
+        workflow: str,
+        query: str,
+        employee: dict[str, Any],
+        chunks: list[dict[str, Any]],
+        compliance: dict[str, Any],
+        fallback: str,
+    ) -> None:
+        response.llm_reasoning["answer_generation"] = {
+            "prompt_type": "grounded-policy-answer-v1",
+            "prompt_preview": build_synthesis_prompt(
+                workflow=workflow,
+                query=query,
+                employee=employee,
+                chunks=chunks,
+                compliance=compliance,
+                fallback=fallback,
+            ),
+        }
+
+    @staticmethod
     def _kind(query: str) -> str:
         lowered = query.lower()
         # A benefit offered by a vendor is an ethics/gifts question, even when
@@ -112,6 +140,7 @@ class HRAgent:
             response = self._expense(query, employee_id)
         else:
             response = self._policy(query, employee_id)
+        answer_generation = response.llm_reasoning.get("answer_generation", {})
         response.llm_reasoning = {
             "routing": {
                 "prompt_type": "workflow-classification-v1",
@@ -124,20 +153,9 @@ class HRAgent:
                     "Vendor-provided benefits are general policy questions."
                 ),
                 "response_format": "One lowercase workflow label only.",
+                "prompt_preview": build_routing_prompt(query),
             },
-            "answer_generation": {
-                "prompt_type": "grounded-policy-answer-v1",
-                "prompt_fields": [
-                    "retrieved policy excerpts",
-                    "compliance assessment",
-                    "minimum employee context",
-                ],
-                "instruction": (
-                    "Answer only from retrieved policy evidence; cite policy facts and do not invent "
-                    "approvals, balances, dates, or actions."
-                ),
-                "raw_prompt_stored": False,
-            },
+            "answer_generation": answer_generation,
         }
         return response
 
@@ -189,6 +207,15 @@ class HRAgent:
                 f"[OFFICIAL POLICY] {amount_text}. PTO requires direct-manager approval and may be limited "
                 f"by team coverage or a designated blackout period. {compliance['verdict']}"
             )
+        self._record_answer_prompt(
+            response,
+            workflow="PTO and leave",
+            query=query,
+            employee=profile,
+            chunks=policies["chunks"],
+            compliance=compliance,
+            fallback=deterministic_answer,
+        )
         response.answer = synthesize_policy_answer(
             workflow="PTO and leave",
             query=query,
@@ -229,6 +256,15 @@ class HRAgent:
             response.requires_confirmation = True
         deterministic_answer = (f"[OFFICIAL POLICY] {compliance['verdict']} {compliance['conditions']} "
                                 f"The cited remote-work and security policies should guide the review.")
+        self._record_answer_prompt(
+            response,
+            workflow="remote-work eligibility",
+            query=query,
+            employee=profile,
+            chunks=policies["chunks"],
+            compliance=compliance,
+            fallback=deterministic_answer,
+        )
         response.answer = synthesize_policy_answer(
             workflow="remote-work eligibility",
             query=query,
@@ -273,6 +309,7 @@ class HRAgent:
                 "This expense needs HR review before reimbursement."
                 if not result.get("compliant", True) else None
             ),
+            llm_reasoning={"answer_generation": result.get("llm_reasoning", {})},
         )
 
     def _policy(self, query: str, employee_id: str) -> AgentResponse:
@@ -330,6 +367,15 @@ class HRAgent:
                 "[OFFICIAL POLICY] No relevant policy text was retrieved. Please contact "
                 "People Operations for guidance."
             )
+        self._record_answer_prompt(
+            response,
+            workflow="general HR policy",
+            query=query,
+            employee=profile,
+            chunks=chunks,
+            compliance=compliance,
+            fallback=fallback,
+        )
         response.answer = synthesize_policy_answer(
             workflow="general HR policy",
             query=query,

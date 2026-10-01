@@ -114,6 +114,38 @@ function makeBadge(cls, text) {
   return el;
 }
 
+function appendPromptPreview(container, title, prompt) {
+  if (!prompt) return;
+  const details = document.createElement('details');
+  details.className = 'log-card__reasoning';
+  const summary = document.createElement('summary');
+  summary.textContent = title;
+  details.appendChild(summary);
+  const pre = document.createElement('pre');
+  pre.className = 'audit-preview';
+  pre.textContent = prompt;
+  details.appendChild(pre);
+  container.appendChild(details);
+}
+
+function appendToolAudit(container, trace) {
+  if (!Array.isArray(trace) || !trace.length) return;
+  const details = document.createElement('details');
+  details.className = 'log-card__reasoning';
+  const summary = document.createElement('summary');
+  summary.textContent = `MCP/tool calls (${trace.length})`;
+  details.appendChild(summary);
+  trace.forEach((step) => {
+    const pre = document.createElement('pre');
+    pre.className = 'audit-preview';
+    pre.textContent = `${step.step || '?'} · ${step.tool || 'tool'}\n` +
+      `args: ${JSON.stringify(step.args ?? step.input ?? {}, null, 2)}\n` +
+      `result: ${JSON.stringify(step.result ?? step.output ?? {}, null, 2)}`;
+    details.appendChild(pre);
+  });
+  container.appendChild(details);
+}
+
 function buildConversationCard(entry) {
   const card = document.createElement('div');
   card.className = 'log-card';
@@ -177,15 +209,18 @@ function buildConversationCard(entry) {
 
     const content = document.createElement('div');
     content.className = 'log-card__reasoning-content';
-    const fields = Array.isArray(routing.prompt_fields) ? routing.prompt_fields.join(', ') : 'not recorded';
-    const answerPrompt = reasoning.answer_generation?.prompt_type || 'not recorded';
+    const answer = reasoning.answer_generation || {};
     content.textContent = `Routing prompt: ${routing.prompt_type || 'not recorded'}\n` +
       `Model: ${routing.model || 'not recorded'}\n` +
       `Route: ${routing.selected_workflow || 'not recorded'} (${routing.route_source || 'not recorded'})\n` +
-      `Routing prompt fields: ${fields}\n` +
-      `Answer prompt: ${answerPrompt}\n` +
-      'Raw LLM prompts and employee values are not stored.';
+      `Routing instruction: ${routing.instruction || 'not recorded'}\n` +
+      `Answer prompt: ${answer.prompt_type || 'not recorded'}\n` +
+      `Answer instruction: ${answer.instruction || 'embedded in prompt preview'}\n` +
+      'Prompt previews and MCP calls are available below.';
     details.appendChild(content);
+    appendPromptPreview(details, 'Routing prompt preview', routing.prompt_preview);
+    appendPromptPreview(details, 'Answer prompt preview', answer.prompt_preview);
+    appendToolAudit(details, entry.tool_trace);
     card.appendChild(details);
   }
 
@@ -257,10 +292,12 @@ function buildPromptCard(entry) {
     `Model: ${routing.model || 'not recorded'}\n` +
     `Selected route: ${routing.selected_workflow || 'not recorded'} (${routing.route_source || 'not recorded'})\n` +
     `Routing response format: ${routing.response_format || 'not recorded'}\n` +
-    `Answer instruction: ${answer.instruction || 'not recorded'}\n` +
-    `Prompt context categories: ${(answer.prompt_fields || []).join(', ') || 'not recorded'}\n` +
-    'Raw prompts, retrieved text, and employee values are not stored.';
+    `Answer prompt: ${answer.prompt_type || 'not recorded'}\n` +
+    'Prompt previews and MCP calls are retained only in this authenticated admin view.';
   card.appendChild(detail);
+  appendPromptPreview(card, 'Routing prompt preview', routing.prompt_preview);
+  appendPromptPreview(card, 'Answer prompt preview', answer.prompt_preview);
+  appendToolAudit(card, entry.tool_trace);
   return card;
 }
 

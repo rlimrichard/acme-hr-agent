@@ -77,6 +77,36 @@ _OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 _OPENROUTER_DEFAULT_MODEL = "anthropic/claude-haiku-4-5"
 
 
+def _build_synthesis_prompt(
+    query: str,
+    employee: dict,
+    chunks: list[dict],
+    section: dict,
+    compliance: dict,
+) -> str:
+    """Build the evidence-grounded expense prompt retained in admin audit logs."""
+    seen: set[str] = set()
+    parts: list[str] = []
+    if section.get("found"):
+        key = f"{section['doc_id']}:{section['section']}"
+        seen.add(key)
+        parts.append(f"[{section['doc_id']} § {section['section']}]\n{section['text']}")
+    for chunk in chunks:
+        key = f"{chunk['doc_id']}:{chunk['section']}"
+        if key not in seen:
+            seen.add(key)
+            parts.append(f"[{chunk['doc_id']} § {chunk['section']}]\n{chunk['text']}")
+    return _SYNTHESIS_PROMPT.format(
+        name=employee.get("name", "Employee"),
+        role=employee.get("role", "Unknown"),
+        remote_status=employee.get("remote_status", "Unknown"),
+        context_block="\n\n".join(parts) or "(No policy context retrieved.)",
+        compliance_verdict=compliance.get("verdict", ""),
+        citations="\n".join(compliance.get("citations", [])) or "(none)",
+        query=query,
+    )
+
+
 def _synthesize(
     query: str,
     employee: dict,
@@ -94,31 +124,7 @@ def _synthesize(
     except ImportError:
         return _template_answer(query, employee, compliance, section)
 
-    # Build deduplicated context block
-    seen: set[str] = set()
-    parts: list[str] = []
-
-    if section.get("found"):
-        key = f"{section['doc_id']}:{section['section']}"
-        if key not in seen:
-            seen.add(key)
-            parts.append(f"[{section['doc_id']} § {section['section']}]\n{section['text']}")
-
-    for c in chunks:
-        key = f"{c['doc_id']}:{c['section']}"
-        if key not in seen:
-            seen.add(key)
-            parts.append(f"[{c['doc_id']} § {c['section']}]\n{c['text']}")
-
-    prompt = _SYNTHESIS_PROMPT.format(
-        name=employee.get("name", "Employee"),
-        role=employee.get("role", "Unknown"),
-        remote_status=employee.get("remote_status", "Unknown"),
-        context_block="\n\n".join(parts) or "(No policy context retrieved.)",
-        compliance_verdict=compliance.get("verdict", ""),
-        citations="\n".join(compliance.get("citations", [])) or "(none)",
-        query=query,
-    )
+    prompt = _build_synthesis_prompt(query, employee, chunks, section, compliance)
 
     model = os.environ.get("OPENROUTER_MODEL", _OPENROUTER_DEFAULT_MODEL)
     client = OpenAI(api_key=api_key, base_url=_OPENROUTER_BASE_URL)
@@ -264,6 +270,10 @@ def run(employee_id: str, query: str) -> dict[str, Any]:
 
     # ── Step 5: synthesize ────────────────────────────────────────────────────
     answer = _synthesize(query, employee, chunks, section, compliance)
+    llm_reasoning = {
+        "prompt_type": "expense-policy-answer-v1",
+        "prompt_preview": _build_synthesis_prompt(query, employee, chunks, section, compliance),
+    }
 
     # Collect citations — compliance first, then top RAG chunks
     seen_cites: set[str] = set()
@@ -279,6 +289,7 @@ def run(employee_id: str, query: str) -> dict[str, Any]:
         "tool_trace": trace,
         "compliant":  compliance.get("compliant"),
         "employee":   employee,
+        "llm_reasoning": llm_reasoning,
     }
 
 

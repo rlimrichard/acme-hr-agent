@@ -569,6 +569,21 @@ body {
   color: var(--ink-faint);
 }
 
+.audit-preview {
+  max-height: 420px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 8px 0 0;
+  padding: 10px;
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
 .database-table {
   width: 100%;
   border-collapse: collapse;

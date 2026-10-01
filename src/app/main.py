@@ -113,6 +113,17 @@ def _employee_records() -> list[dict[str, Any]]:
         raise HTTPException(status_code=500, detail="HR employee directory is invalid") from exc
 
 
+def _bounded_audit_value(value: Any, max_string: int = 12_000) -> Any:
+    """Keep admin audit records detailed without letting one call grow logs unbounded."""
+    if isinstance(value, str):
+        return value if len(value) <= max_string else value[:max_string] + "\n… [truncated for audit storage]"
+    if isinstance(value, dict):
+        return {key: _bounded_audit_value(item, max_string) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_bounded_audit_value(item, max_string) for item in value]
+    return value
+
+
 def _log_chat(employee_id: str, query: str, result: dict[str, Any]) -> None:
     try:
         _LOG_DIR.mkdir(exist_ok=True)
@@ -125,9 +136,10 @@ def _log_chat(employee_id: str, query: str, result: dict[str, Any]) -> None:
             "answer": result.get("answer", ""),
             "escalated": result.get("escalated", False),
             "tool_steps": len(result.get("tool_trace", [])),
-            # Admin-only audit metadata.  This deliberately excludes raw LLM
-            # prompts, employee-profile values, policy text, and credentials.
-            "llm_reasoning": result.get("llm_reasoning", {}),
+            # Admin-only, bounded diagnostic detail. API keys are never part
+            # of a prompt or MCP response and are not written here.
+            "llm_reasoning": _bounded_audit_value(result.get("llm_reasoning", {})),
+            "tool_trace": _bounded_audit_value(result.get("tool_trace", [])),
         }
         with log_file.open("a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")

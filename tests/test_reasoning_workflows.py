@@ -68,9 +68,9 @@ def test_llm_route_is_used_before_deterministic_fallback(monkeypatch) -> None:
         "lookup_employee_profile", "search_policy_documents", "check_policy_compliance",
     ]
     assert response.llm_reasoning["routing"]["route_source"] == "llm"
-    assert response.llm_reasoning["routing"]["prompt_fields"] == ["employee question"]
     assert "Classify" in response.llm_reasoning["routing"]["instruction"]
-    assert response.llm_reasoning["answer_generation"]["raw_prompt_stored"] is False
+    assert "QUESTION:" in response.llm_reasoning["routing"]["prompt_preview"]
+    assert "RETRIEVED POLICY EVIDENCE" in response.llm_reasoning["answer_generation"]["prompt_preview"]
 
 
 # ── General policy workflow ───────────────────────────────────────────────────
