@@ -116,6 +116,22 @@ This takes ~30 seconds on the first run (model load + encoding). Re-running is i
 
 ---
 
+## Reasoning Logic
+
+Each employee question follows a grounded, inspectable workflow:
+
+1. **LLM-first routing.** The configured OpenRouter model classifies the question as `pto`, `remote`, `expense`, or general `policy`. It is constrained to return one allowed label. A deterministic router is used only if the model is unavailable or returns an invalid label. Vendor-provided gifts, travel, and other benefits are treated as ethics/policy questions rather than PTO or expenses.
+2. **Hybrid policy retrieval.** Every workflow searches with the employee's original question first, then adds narrow workflow anchors. Exact multi-word phrases found in policy section names (for example, `sick leave`) receive a ranking preference over nearby semantic matches.
+3. **Workflow-specific checks.** PTO looks up the employee profile and balance; remote work requires review and only creates a mock ticket after explicit confirmation; expenses retrieve a relevant reimbursement section and assess compliance; general policy questions retrieve the applicable HR or conduct rules.
+4. **Grounded synthesis.** The LLM receives only minimal employee context, retrieved policy excerpts, a compliance assessment, and a deterministic fallback. It must cite policy facts and may not invent approvals, dates, balances, or actions. If the LLM is unavailable, the fallback answer is returned.
+5. **High-confidence safeguards.** Deterministic policy rules remain for explicit thresholds and critical distinctions, including the unified PTO bank for vacation and sick leave, vendor gifts over $75, vendor-paid travel, and travel meal per-diem limits.
+
+### Privacy and admin auditability
+
+The employee-facing API exposes cited answers and tool traces, not LLM prompts. Authenticated admins can view a sanitized prompt audit containing the routing model, selected workflow, prompt type, context categories, and whether LLM or fallback routing was used. Raw prompts, policy excerpts, employee values, and credentials are not stored in that audit record.
+
+---
+
 ## Run the MCP Server
 
 The MCP server exposes all 8 HR tools over REST HTTP on port 8001:
