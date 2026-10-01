@@ -671,6 +671,12 @@ body {
 }
 .confirm-btn:hover { background: var(--accent); color: #fff; }
 .confirm-btn:disabled { opacity: 0.5; cursor: default; }
+/* Explicit guard: 'display: inline-block' above would otherwise override
+   the browser's default [hidden] behavior at equal specificity (the same
+   bug that made .message__escalated show on every message -- see the
+   fix/hidden-attribute-css-override branch, which adds this globally).
+   Kept here too in case this lands before that branch is merged. */
+.confirm-btn[hidden] { display: none; }
 
 /* ---- Theme toggle button ---- */
 .theme-toggle {
