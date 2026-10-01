@@ -26,6 +26,11 @@ def tool_names(response) -> list[str]:
     return [step["tool"] for step in response.tool_trace]
 
 
+def _force_deterministic_routing(monkeypatch) -> None:
+    """Keep workflow regression cases independent of provider availability."""
+    monkeypatch.setattr(orchestrator, "classify_workflow", lambda _query: None)
+
+
 # ── Tool discovery ─────────────────────────────────────────────────────────────
 
 def test_discovers_eight_tools() -> None:
@@ -142,6 +147,24 @@ def test_pto_employee_not_found_escalates() -> None:
     assert response.escalated is True
 
 
+@pytest.mark.parametrize("query,employee_id,expected_escalated", [
+    ("Can I take 2 days of vacation next month?", "EMP-004", False),
+    ("Do I have enough PTO for a 10-day trip?", "EMP-001", False),
+    ("Can I take 20 days off?", "EMP-003", True),
+    ("How much vacation time do I have left?", "EMP-005", False),
+    ("Can I use my PTO for a family event?", "EMP-002", False),
+])
+def test_deterministic_pto_cases(monkeypatch, query, employee_id, expected_escalated) -> None:
+    _force_deterministic_routing(monkeypatch)
+    response = _agent().answer(query, employee_id)
+    assert tool_names(response) == [
+        "lookup_employee_profile", "check_pto_balance", "search_policy_documents",
+        "check_policy_compliance",
+    ]
+    assert response.citations
+    assert response.escalated is expected_escalated
+
+
 # ── Remote work workflow ──────────────────────────────────────────────────────
 
 def test_remote_work_requires_confirmation_before_ticket() -> None:
@@ -170,6 +193,25 @@ def test_remote_work_always_escalated() -> None:
     assert response.escalated is True
 
 
+@pytest.mark.parametrize("query,employee_id", [
+    ("Can I work from Canada for two weeks?", "EMP-001"),
+    ("May I work remotely from France for a month?", "EMP-002"),
+    ("Can I temporarily work abroad while visiting family?", "EMP-003"),
+    ("Can I work from another state for six weeks?", "EMP-004"),
+    ("What approval do I need to work from Japan?", "EMP-005"),
+])
+def test_deterministic_remote_cases_require_confirmation(monkeypatch, query, employee_id) -> None:
+    _force_deterministic_routing(monkeypatch)
+    response = _agent().answer(query, employee_id)
+    assert tool_names(response) == [
+        "lookup_employee_profile", "search_policy_documents", "check_policy_compliance",
+    ]
+    assert response.citations
+    assert response.escalated is True
+    assert response.requires_confirmation is True
+    assert "create_mock_hr_ticket" not in tool_names(response)
+
+
 # ── Expense workflow ───────────────────────────────────────────────────────────
 
 def test_expense_advisor_returns_policy_based_decision() -> None:
@@ -191,3 +233,41 @@ def test_expense_escalated_reflects_compliance_result() -> None:
     response = _agent().answer("Can I expense a $1,200 standing desk?", "EMP-001")
     compliance_step = next(s for s in response.tool_trace if s["tool"] == "check_policy_compliance")
     assert response.escalated is (not compliance_step["result"]["compliant"])
+
+
+@pytest.mark.parametrize("query,employee_id", [
+    ("What is my per diem meal limit?", "EMP-001"),
+    ("Can I expense a $200 monitor for my home office?", "EMP-002"),
+    ("Can I get reimbursed for a client dinner?", "EMP-003"),
+    ("Can I submit mileage for a customer visit?", "EMP-004"),
+    ("Is a hotel charge reimbursable for business travel?", "EMP-005"),
+])
+def test_deterministic_expense_cases(monkeypatch, query, employee_id) -> None:
+    _force_deterministic_routing(monkeypatch)
+    response = _agent().answer(query, employee_id)
+    assert tool_names(response) == [
+        "lookup_employee_profile", "search_policy_documents",
+        "get_policy_section", "check_policy_compliance",
+    ]
+    assert response.citations
+    compliance_step = next(s for s in response.tool_trace if s["tool"] == "check_policy_compliance")
+    assert response.escalated is (not compliance_step["result"]["compliant"])
+
+
+# ── Additional deterministic general-policy cases ─────────────────────────────
+
+@pytest.mark.parametrize("query,employee_id", [
+    ("Can I accept a $50 gift card from a vendor?", "EMP-001"),
+    ("Can a vendor pay for my conference hotel?", "EMP-002"),
+    ("What is the conflict of interest policy?", "EMP-003"),
+    ("Are employees allowed to accept supplier event tickets?", "EMP-004"),
+    ("Where can I find the code of conduct policy?", "EMP-005"),
+])
+def test_deterministic_general_policy_cases(monkeypatch, query, employee_id) -> None:
+    _force_deterministic_routing(monkeypatch)
+    response = _agent().answer(query, employee_id)
+    assert tool_names(response) == [
+        "lookup_employee_profile", "search_policy_documents", "check_policy_compliance",
+    ]
+    assert response.citations
+    assert response.requires_confirmation is False
