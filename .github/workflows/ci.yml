@@ -68,8 +68,6 @@ jobs:
             # Pull latest code from git clone
             cd /opt/acme-hr-agent/acme-hr-agent
             git pull --ff-only
-            # Install any new/updated dependencies
-            /opt/acme-hr-agent/acme-hr-agent/.venv/bin/pip install -q -r requirements.txt
             # Sync source files to the service working directory
             # (excludes: .git, .venv, chroma_db, data — those stay in place)
             rsync -a \
@@ -78,13 +76,10 @@ jobs:
               --exclude='chroma_db' \
               --exclude='data' \
               . /opt/acme-hr-agent/
-            # Install/update dependencies BEFORE restarting -- without this,
-            # any PR that adds a new package (e.g. itsdangerous,
-            # python-multipart) deploys code the venv can't actually import,
-            # and the service crash-loops on startup with no error visible
-            # here until the health check times out.
+            # Install/update dependencies after rsync so new packages are
+            # available before the service restarts
             cd /opt/acme-hr-agent
-            .venv/bin/pip install -q -r requirements.txt
+            .venv/bin/python -m pip install -q -r requirements.txt
             # Restart and wait for the service to be ready (up to 60s)
             sudo systemctl restart acme-hr-agent
             for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
