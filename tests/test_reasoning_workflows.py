@@ -186,8 +186,8 @@ def test_remote_work_ticket_created_when_confirmed() -> None:
     response = _agent().answer("Can I work from Spain for 6 weeks?", "EMP-001", confirmed=True)
     assert response.requires_confirmation is False
     assert "create_mock_hr_ticket" in tool_names(response)
-    assert "simulated HR review request" in response.answer
-    assert "not been submitted to an external HR system" in response.answer
+    assert "Your HR review request has been created:" in response.answer
+    assert "People Operations will review the overseas work arrangement." in response.answer
 
 
 def test_remote_work_always_escalated() -> None:
@@ -230,7 +230,8 @@ def test_country_based_work_arrangements_use_remote_workflow(monkeypatch, query)
     assert response.requires_confirmation is True
     assert response.citations[0]["doc_id"] == "POL-RW-001"
     assert "Working from another country for an extended period needs approval" in response.answer
-    assert "Would you like me to create a simulated HR review request?" in response.answer
+    assert "Would you like me to create an HR review request?" in response.answer
+    assert "[OFFICIAL POLICY]" not in response.answer
 
 
 # ── Expense workflow ───────────────────────────────────────────────────────────
