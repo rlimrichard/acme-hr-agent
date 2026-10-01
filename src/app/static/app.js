@@ -102,7 +102,7 @@ function showThinking() {
   return thread.querySelector('.message--thinking:last-of-type');
 }
 
-function addAgentMessage(data) {
+function addAgentMessage(data, originalQuery, employeeId) {
   const node = tplAgent.content.cloneNode(true);
   const bubble = node.querySelector('.message__bubble');
 
@@ -112,6 +112,20 @@ function addAgentMessage(data) {
     const escalation = node.querySelector('.message__escalated');
     escalation.textContent = data.escalation_message || 'HR review recommended.';
     escalation.hidden = false;
+  }
+
+  // The backend's `confirmed` flag is a parameter on the SAME call, not
+  // conversation history (see HRAgent.answer() in orchestrator.py) -- so
+  // confirming just resends the identical query + employee_id with
+  // confirmed: true, rather than tracking any multi-turn state here.
+  if (data.requires_confirmation) {
+    const confirmBtn = node.querySelector('.confirm-btn');
+    confirmBtn.hidden = false;
+    confirmBtn.addEventListener('click', () => {
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Submitting…';
+      sendQuery(originalQuery, employeeId, /* confirmed */ true);
+    });
   }
 
   const citationsSection = node.querySelector('.message__citations');
@@ -144,7 +158,7 @@ function addErrorMessage(message) {
   scrollToBottom();
 }
 
-async function sendQuery(query, employeeIdOverride) {
+async function sendQuery(query, employeeIdOverride, confirmed = false) {
   const employeeId = (employeeIdOverride || employeeIdInput.value.trim()).toUpperCase();
 
   if (!EMPLOYEE_ID_PATTERN.test(employeeId)) {
@@ -156,7 +170,13 @@ async function sendQuery(query, employeeIdOverride) {
     return;
   }
 
-  addUserMessage(query);
+  // Only show the user's own bubble on the first send -- a confirm-resend
+  // is the same question again, and the confirm button already showed
+  // what's being confirmed, so a second identical user bubble would just
+  // be visual noise.
+  if (!confirmed) {
+    addUserMessage(query);
+  }
 
   sendBtn.disabled = true;
   const thinkingEl = showThinking();
@@ -165,7 +185,7 @@ async function sendQuery(query, employeeIdOverride) {
     const res = await fetch('/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, employee_id: employeeId }),
+      body: JSON.stringify({ query, employee_id: employeeId, confirmed }),
     });
 
     thinkingEl?.remove();
@@ -186,7 +206,7 @@ async function sendQuery(query, employeeIdOverride) {
     }
 
     const data = await res.json();
-    addAgentMessage(data);
+    addAgentMessage(data, query, employeeId);
   } catch (err) {
     thinkingEl?.remove();
     addErrorMessage('Could not reach the server. Is it running?');
