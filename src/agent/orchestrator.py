@@ -9,6 +9,8 @@ from typing import Any
 
 import httpx
 
+from src.agent.reasoner import synthesize_policy_answer
+
 
 @dataclass
 class AgentResponse:
@@ -124,11 +126,18 @@ class HRAgent:
             )
         else:
             email_block = ""
-        response.answer = (
+        deterministic_answer = (
             f"[OFFICIAL POLICY] {amount_text}. PTO requires direct-manager approval and may be limited "
             f"by team coverage or a designated blackout period. {compliance['verdict']}"
-            f"{email_block}"
         )
+        response.answer = synthesize_policy_answer(
+            workflow="PTO and leave",
+            query=query,
+            employee=profile,
+            chunks=policies["chunks"],
+            compliance=compliance,
+            fallback=deterministic_answer,
+        ) + email_block
         if not profile.get("found", False):
             response.escalated = True
             response.escalation_message = "Your employee record could not be found. Please contact HR to verify your profile."
@@ -151,9 +160,16 @@ class HRAgent:
         else:
             ticket_text = ""
             response.requires_confirmation = True
-        response.answer = (f"[OFFICIAL POLICY] {compliance['verdict']} {compliance['conditions']} "
-                           f"The cited remote-work and security policies should guide the review."
-                           f"{ticket_text}")
+        deterministic_answer = (f"[OFFICIAL POLICY] {compliance['verdict']} {compliance['conditions']} "
+                                f"The cited remote-work and security policies should guide the review.")
+        response.answer = synthesize_policy_answer(
+            workflow="remote-work eligibility",
+            query=query,
+            employee=profile,
+            chunks=policies["chunks"],
+            compliance=compliance,
+            fallback=deterministic_answer,
+        ) + ticket_text
         response.escalated = True
         response.escalation_message = "Remote-work requests require HR review and approval before arrangements are finalized."
         return response
