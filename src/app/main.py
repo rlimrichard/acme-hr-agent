@@ -6,6 +6,7 @@ import json
 import os
 import re
 import secrets
+import sqlite3
 import subprocess
 import sys
 import time
@@ -18,7 +19,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import httpx
-from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
@@ -75,6 +76,31 @@ def require_admin_api(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
 _LOG_DIR = Path(__file__).parents[2] / "logs"
+_CHROMA_SQLITE = Path(__file__).parents[2] / "chroma_db" / "chroma.sqlite3"
+
+
+def _quoted_sql_identifier(name: str) -> str:
+    """Quote a SQLite identifier sourced from sqlite_master, never user SQL."""
+    return '"' + name.replace('"', '""') + '"'
+
+
+def _database_tables() -> list[str]:
+    if not _CHROMA_SQLITE.is_file():
+        raise HTTPException(status_code=404, detail="Policy database is not available")
+    with sqlite3.connect(f"file:{_CHROMA_SQLITE}?mode=ro", uri=True) as connection:
+        rows = connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+        ).fetchall()
+    return [str(row[0]) for row in rows]
+
+
+def _safe_database_value(value: Any) -> Any:
+    """Keep admin previews useful without returning large binary/vector payloads."""
+    if isinstance(value, bytes):
+        return f"<binary: {len(value)} bytes>"
+    if isinstance(value, str) and len(value) > 600:
+        return value[:600] + "…"
+    return value
 
 
 def _log_chat(employee_id: str, query: str, result: dict[str, Any]) -> None:
@@ -299,6 +325,43 @@ def list_tickets(_admin: None = Depends(require_admin_api)) -> dict[str, Any]:
             except json.JSONDecodeError:
                 pass
     return {"tickets": list(reversed(tickets))}
+
+
+@app.get("/admin/database")
+def database_overview(_admin: None = Depends(require_admin_api)) -> dict[str, Any]:
+    """Return read-only Chroma SQLite table metadata for the admin browser."""
+    tables = _database_tables()
+    with sqlite3.connect(f"file:{_CHROMA_SQLITE}?mode=ro", uri=True) as connection:
+        overview = [
+            {
+                "name": table,
+                "row_count": connection.execute(
+                    f"SELECT COUNT(*) FROM {_quoted_sql_identifier(table)}"
+                ).fetchone()[0],
+            }
+            for table in tables
+        ]
+    return {"database": _CHROMA_SQLITE.name, "read_only": True, "tables": overview}
+
+
+@app.get("/admin/database/{table_name}")
+def database_table_rows(
+    table_name: str,
+    limit: int = Query(default=50, ge=1, le=100),
+    _admin: None = Depends(require_admin_api),
+) -> dict[str, Any]:
+    """Return a capped, read-only row preview for one known SQLite table."""
+    if table_name not in _database_tables():
+        raise HTTPException(status_code=404, detail="Database table not found")
+    identifier = _quoted_sql_identifier(table_name)
+    with sqlite3.connect(f"file:{_CHROMA_SQLITE}?mode=ro", uri=True) as connection:
+        cursor = connection.execute(f"SELECT * FROM {identifier} LIMIT ?", (limit,))
+        columns = [column[0] for column in cursor.description]
+        rows = [
+            {column: _safe_database_value(value) for column, value in zip(columns, row)}
+            for row in cursor.fetchall()
+        ]
+    return {"table": table_name, "columns": columns, "rows": rows, "limit": limit}
 
 @app.get("/admin/logs/{date}")
 def get_log_entries(date: str, _admin: None = Depends(require_admin_api)) -> dict[str, Any]:

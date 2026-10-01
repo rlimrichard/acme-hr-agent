@@ -35,7 +35,19 @@
       <!-- Tab switcher -->
       <div class="admin-tabs" role="tablist">
         <button class="admin-tab admin-tab--active" id="tab-conversations" role="tab" aria-selected="true" aria-controls="panel-conversations">Conversations</button>
+        <button class="admin-tab" id="tab-prompts" role="tab" aria-selected="false" aria-controls="panel-prompts">Prompt audit</button>
         <button class="admin-tab" id="tab-tickets" role="tab" aria-selected="false" aria-controls="panel-tickets">Tickets</button>
+        <button class="admin-tab" id="tab-database" role="tab" aria-selected="false" aria-controls="panel-database">Database</button>
+      </div>
+
+      <!-- Prompt audit panel -->
+      <div id="panel-prompts" role="tabpanel" aria-labelledby="tab-prompts" style="display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
+        <div class="admin-toolbar">
+          <label for="prompt-date-select">Date</label>
+          <select id="prompt-date-select" class="admin-date-select"><option value="">Loading…</option></select>
+          <span class="admin-count" id="prompt-count"></span>
+        </div>
+        <div class="admin-entries" id="prompt-list"><div class="admin-empty">Loading prompt audit…</div></div>
       </div>
 
       <!-- Conversations panel -->
@@ -60,6 +72,16 @@
         <div class="admin-entries" id="tickets-list">
           <div class="admin-empty">Loading tickets…</div>
         </div>
+      </div>
+
+      <!-- Read-only Chroma SQLite browser -->
+      <div id="panel-database" role="tabpanel" aria-labelledby="tab-database" style="display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
+        <div class="admin-toolbar">
+          <label for="database-table-select">Table</label>
+          <select id="database-table-select" class="admin-date-select"><option value="">Loading…</option></select>
+          <span class="admin-count" id="database-count"></span>
+        </div>
+        <div class="admin-entries" id="database-list"><div class="admin-empty">Loading database…</div></div>
       </div>
     </div>
   </div>

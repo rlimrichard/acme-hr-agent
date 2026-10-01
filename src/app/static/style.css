@@ -569,6 +569,29 @@ body {
   color: var(--ink-faint);
 }
 
+.database-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+}
+
+.database-table th, .database-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  max-width: 360px;
+  overflow-wrap: anywhere;
+}
+
+.database-table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  color: var(--ink-soft);
+}
+
 /* thinking indicator -- appears only while waiting on a real response */
 .thinking-dots { display: inline-flex; gap: 4px; padding: 3px 0; }
 .thinking-dots span {

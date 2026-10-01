@@ -119,6 +119,11 @@ class HRAgent:
                 "selected_workflow": kind,
                 "route_source": "llm" if llm_kind else "deterministic fallback",
                 "prompt_fields": ["employee question"],
+                "instruction": (
+                    "Classify the employee question as PTO, remote work, expense, or general policy. "
+                    "Vendor-provided benefits are general policy questions."
+                ),
+                "response_format": "One lowercase workflow label only.",
             },
             "answer_generation": {
                 "prompt_type": "grounded-policy-answer-v1",
@@ -127,6 +132,10 @@ class HRAgent:
                     "compliance assessment",
                     "minimum employee context",
                 ],
+                "instruction": (
+                    "Answer only from retrieved policy evidence; cite policy facts and do not invent "
+                    "approvals, balances, dates, or actions."
+                ),
                 "raw_prompt_stored": False,
             },
         }
