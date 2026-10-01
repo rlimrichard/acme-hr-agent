@@ -256,12 +256,23 @@ class HRAgent:
         if confirmed:
             ticket = self._invoke(response, "create_mock_hr_ticket", employee_id=employee_id, ticket_type="general_inquiry",
                                   subject="Remote-work eligibility request", description=query)
-            ticket_text = f" A mock HR approval ticket {ticket['ticket_id']} has been created."
+            ticket_text = (
+                f" I created simulated HR review request {ticket['ticket_id']} in this demo app. "
+                "It has not been submitted to an external HR system."
+            )
         else:
             ticket_text = ""
             response.requires_confirmation = True
-        deterministic_answer = (f"[OFFICIAL POLICY] {compliance['verdict']} {compliance['conditions']} "
-                                f"The cited remote-work and security policies should guide the review.")
+        remote_status = profile.get("remote_status", "current")
+        deterministic_answer = (
+            f"[OFFICIAL POLICY] Working from another country for an extended period needs approval before "
+            f"you make arrangements. Because your current work arrangement is {remote_status}, your manager "
+            "and People Operations need to confirm that the location and schedule work for your role. "
+            "If approved, you must follow the remote-work policy on core hours, VPN use, and protecting company data "
+            "[POL-RW-001 § 2. Eligibility; § 3. Work Hours and Availability; § 6. Security and Data Privacy]."
+        )
+        if not confirmed:
+            deterministic_answer += " Would you like me to create a simulated HR review request?"
         self._record_answer_prompt(
             response,
             workflow="remote-work eligibility",
