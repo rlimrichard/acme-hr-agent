@@ -109,7 +109,9 @@ function addAgentMessage(data) {
   node.querySelector('.message__answer').textContent = data.answer;
 
   if (data.escalated) {
-    node.querySelector('.message__escalated').hidden = false;
+    const escalation = node.querySelector('.message__escalated');
+    escalation.textContent = data.escalation_message || 'HR review recommended.';
+    escalation.hidden = false;
   }
 
   const citationsSection = node.querySelector('.message__citations');

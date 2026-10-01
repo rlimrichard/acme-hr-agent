@@ -17,6 +17,7 @@ class AgentResponse:
     snippets: list[dict[str, str]] = field(default_factory=list)
     tool_trace: list[dict[str, Any]] = field(default_factory=list)
     escalated: bool = False
+    escalation_message: str | None = None
     requires_confirmation: bool = False
 
     def as_dict(self) -> dict[str, Any]:
@@ -94,7 +95,11 @@ class HRAgent:
     def answer(self, query: str, employee_id: str, confirmed: bool = False) -> AgentResponse:
         kind = self._kind(query)
         if kind is None:
-            return AgentResponse("I can help with PTO and leave, remote-work eligibility, or expense reimbursement. Please clarify which of those you need.", escalated=True)
+            return AgentResponse(
+                "I can help with PTO and leave, remote-work eligibility, or expense reimbursement. Please clarify which of those you need.",
+                escalated=True,
+                escalation_message="This request is outside the assistant's supported topics. Please contact HR for help.",
+            )
         if kind == "pto":
             return self._pto(query, employee_id)
         if kind == "remote":
@@ -133,7 +138,12 @@ class HRAgent:
             f"by team coverage or a designated blackout period. {compliance['verdict']}"
             f"{email_block}"
         )
-        response.escalated = not profile.get("found", False) or not enough
+        if not profile.get("found", False):
+            response.escalated = True
+            response.escalation_message = "Your employee record could not be found. Please contact HR to verify your profile."
+        elif not enough:
+            response.escalated = True
+            response.escalation_message = "This request exceeds your available PTO balance. Please discuss options with your manager or HR."
         return response
 
     def _remote(self, query: str, employee_id: str, confirmed: bool) -> AgentResponse:
@@ -154,6 +164,7 @@ class HRAgent:
                            f"The cited remote-work and security policies should guide the review."
                            f"{ticket_text}")
         response.escalated = True
+        response.escalation_message = "Remote-work requests require HR review and approval before arrangements are finalized."
         return response
 
     def _expense(self, query: str, employee_id: str) -> AgentResponse:
@@ -184,4 +195,8 @@ class HRAgent:
             snippets=snippets,
             tool_trace=tool_trace,
             escalated=not result.get("compliant", True),
+            escalation_message=(
+                "This expense needs HR review before reimbursement."
+                if not result.get("compliant", True) else None
+            ),
         )

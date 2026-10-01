@@ -6,10 +6,19 @@ and embeds them into a local ChromaDB collection.
 """
 
 import re
+import sys
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+# Chroma requires SQLite 3.35+. Use the bundled portable runtime on hosts
+# whose operating-system SQLite is older, including Oracle Linux 9.
+try:
+    import pysqlite3
+    sys.modules["sqlite3"] = pysqlite3
+except ImportError:
+    pass
 
 import chromadb
 from bs4 import BeautifulSoup

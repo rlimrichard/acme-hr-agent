@@ -9,9 +9,19 @@ Usage (standalone demo):
     python src/retrieval.py "How many PTO days do I get after 3 years?"
 """
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 from typing import Any
+
+# Chroma requires SQLite 3.35+. Use the bundled portable runtime on hosts
+# whose operating-system SQLite is older, including Oracle Linux 9.
+try:
+    import pysqlite3
+    sys.modules["sqlite3"] = pysqlite3
+except ImportError:
+    pass
 
 import chromadb
 from chromadb.config import Settings
