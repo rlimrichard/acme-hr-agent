@@ -202,6 +202,9 @@ def chat(request: ChatRequest) -> dict[str, Any]:
     try:
         result = HRAgent(MCPClient()).answer(request.query, request.employee_id, request.confirmed).as_dict()
         _log_chat(request.employee_id, request.query, result)
+        # The sanitized audit data is written only to the authenticated admin
+        # log; employee-facing API clients must not receive it.
+        result.pop("llm_reasoning", None)
         return result
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=503, detail="The HR tool server is unavailable. Please try again shortly.") from exc
