@@ -84,17 +84,17 @@ body {
   font-size: 0.85rem;
   color: var(--ink-soft);
 }
-.topbar__session input {
+.topbar__session input, .topbar__session select {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.85rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 5px 8px;
-  width: 96px;
+  width: 178px;
   background: var(--paper);
   color: var(--ink);
 }
-.topbar__session input:focus {
+.topbar__session input:focus, .topbar__session select:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -666,7 +666,7 @@ body {
 
   /* Hide "Employee ID" label — the monospace input is self-explanatory */
   .topbar__session label { display: none; }
-  .topbar__session input  { width: 84px; }
+  .topbar__session input, .topbar__session select { width: 148px; }
 
   /* Status: just the dot — text is redundant on small screens */
   #health-label { display: none; }
@@ -687,7 +687,7 @@ body {
   .composer textarea { font-size: 16px; } /* prevent iOS auto-zoom on focus */
 
   /* Employee ID input: same iOS-zoom prevention */
-  .topbar__session input { font-size: 16px; }
+  .topbar__session input, .topbar__session select { font-size: 16px; }
 
   /* Documents page */
   .doc-card { flex-wrap: wrap; }

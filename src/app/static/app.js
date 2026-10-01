@@ -46,6 +46,33 @@ const tplThinking = document.getElementById('tpl-thinking');
 
 const EMPLOYEE_ID_PATTERN = /^EMP-\d{3}$/;
 
+async function loadEmployeeOptions() {
+  try {
+    const res = await fetch('/employees');
+    if (!res.ok) throw new Error('employee directory unavailable');
+    const data = await res.json();
+    const employees = data.employees || [];
+    employeeIdInput.textContent = '';
+    employees.forEach((employee) => {
+      const option = document.createElement('option');
+      option.value = employee.employee_id;
+      option.textContent = `${employee.employee_id} — ${employee.name}`;
+      employeeIdInput.appendChild(option);
+    });
+    employeeIdInput.value = employees.some((employee) => employee.employee_id === 'EMP-002')
+      ? 'EMP-002'
+      : (employees[0]?.employee_id || '');
+    employeeIdInput.disabled = employees.length === 0;
+  } catch {
+    employeeIdInput.textContent = '';
+    const option = document.createElement('option');
+    option.textContent = 'Employee directory unavailable';
+    option.value = '';
+    employeeIdInput.appendChild(option);
+    employeeIdInput.disabled = true;
+  }
+}
+
 function scrollToBottom() {
   thread.scrollTop = thread.scrollHeight;
 }
@@ -249,5 +276,6 @@ async function pollHealth() {
   }
 }
 
+loadEmployeeOptions();
 pollHealth();
 setInterval(pollHealth, 15000);

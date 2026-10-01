@@ -20,7 +20,9 @@
       </nav>
       <div class="topbar__session">
         <label for="employee-id">Employee ID</label>
-        <input id="employee-id" type="text" placeholder="EMP-002" value="EMP-002" autocomplete="off" pattern="EMP-[0-9]{3}" />
+        <select id="employee-id" aria-label="Select employee" disabled>
+          <option value="">Loading employees…</option>
+        </select>
       </div>
       <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle light/dark mode">
         <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

@@ -104,6 +104,15 @@ def _safe_database_value(value: Any) -> Any:
     return value
 
 
+def _employee_records() -> list[dict[str, Any]]:
+    if not _EMPLOYEES_FILE.is_file():
+        raise HTTPException(status_code=404, detail="HR employee directory is not available")
+    try:
+        return json.loads(_EMPLOYEES_FILE.read_text(encoding="utf-8")).get("employees", [])
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=500, detail="HR employee directory is invalid") from exc
+
+
 def _log_chat(employee_id: str, query: str, result: dict[str, Any]) -> None:
     try:
         _LOG_DIR.mkdir(exist_ok=True)
@@ -237,6 +246,16 @@ def chat(request: ChatRequest) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="The HR tool server is unavailable. Please try again shortly.") from exc
 
 
+@app.get("/employees")
+def employee_options() -> dict[str, list[dict[str, str]]]:
+    """Minimal employee directory for the home-page account selector."""
+    employees = [
+        {"employee_id": employee["employee_id"], "name": employee["name"]}
+        for employee in _employee_records()
+    ]
+    return {"employees": sorted(employees, key=lambda employee: employee["employee_id"])}
+
+
 # ── CHANGED: was a hardcoded HTML string, now serves the real chat UI ────
 @app.get("/documents")
 def list_documents() -> dict[str, Any]:
@@ -348,12 +367,7 @@ def database_overview(_admin: None = Depends(require_admin_api)) -> dict[str, An
 @app.get("/admin/hr-database")
 def hr_database(_admin: None = Depends(require_admin_api)) -> dict[str, Any]:
     """Return the read-only HR employee directory used by the agent."""
-    if not _EMPLOYEES_FILE.is_file():
-        raise HTTPException(status_code=404, detail="HR employee directory is not available")
-    try:
-        records = json.loads(_EMPLOYEES_FILE.read_text(encoding="utf-8")).get("employees", [])
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=500, detail="HR employee directory is invalid") from exc
+    records = _employee_records()
     columns = [
         "employee_id", "name", "role", "department", "office_location",
         "remote_status", "hire_date", "manager_id", "pto_balance_days",
