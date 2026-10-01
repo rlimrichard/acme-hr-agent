@@ -70,11 +70,11 @@ def test_response_as_dict_has_all_required_keys() -> None:
 
 # ── PTO workflow ──────────────────────────────────────────────────────────────
 
-def test_pto_advisor_uses_profile_balance_policy_compliance_and_draft() -> None:
+def test_pto_advisor_answers_information_request_without_drafting() -> None:
     response = _agent().answer("Can I take 3 weeks off in December?", "EMP-002")
     assert tool_names(response) == [
         "lookup_employee_profile", "check_pto_balance", "search_policy_documents",
-        "check_policy_compliance", "draft_hr_email",
+        "check_policy_compliance",
     ]
     assert response.citations
 
