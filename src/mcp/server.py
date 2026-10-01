@@ -308,7 +308,7 @@ def check_policy_compliance(
     source_ids = ", ".join(dict.fromkeys(c["doc_id"] for c in chunks))
     top_text   = chunks[0]["text"].lower()
     best_dist  = chunks[0].get("distance", 1.0)
-    conditions = "; ".join(c.get("snippet", c["text"])[:100] for c in chunks[:2])
+    conditions = "; ".join(dict.fromkeys(c["section"] for c in chunks[:3]))
 
     if best_dist < 0.30 and any(kw in top_text for kw in _PROHIBITIONS):
         return {
