@@ -150,10 +150,17 @@ def search_policy_documents(
 
 def get_policy_section(doc_id: str, section: str) -> dict[str, Any]:
     """Retrieve the closest-matching section from a specific policy document."""
-    chunks = _retrieve(section, top_k=10, doc_id=doc_id)
+    # Search the full document before choosing a result.  A semantic nearest
+    # neighbour alone can select a related section (for example, a general
+    # business-meals rule instead of the specifically named travel-meals rule).
+    chunks = _retrieve(section, top_k=100, doc_id=doc_id)
     if not chunks:
         return {"doc_id": doc_id, "doc_title": "", "section": section, "text": "", "found": False}
-    best = chunks[0]
+    needle = " ".join(section.lower().split())
+    best = next(
+        (chunk for chunk in chunks if needle in " ".join(chunk["section"].lower().split())),
+        chunks[0],
+    )
     return {
         "doc_id":    best["doc_id"],
         "doc_title": best["doc_title"],
