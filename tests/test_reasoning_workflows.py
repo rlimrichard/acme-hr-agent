@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+import src.agent.orchestrator as orchestrator
 from src.agent.orchestrator import HRAgent
 from src.mcp.server import app
 
@@ -49,6 +50,14 @@ def test_discovers_eight_tools() -> None:
 ])
 def test_kind_routing(query: str, expected: str) -> None:
     assert HRAgent._kind(query) == expected
+
+
+def test_llm_route_is_used_before_deterministic_fallback(monkeypatch) -> None:
+    monkeypatch.setattr(orchestrator, "classify_workflow", lambda _query: "policy")
+    response = _agent().answer("Can I take a vacation next week?", "EMP-001")
+    assert tool_names(response) == [
+        "lookup_employee_profile", "search_policy_documents", "check_policy_compliance",
+    ]
 
 
 # ── General policy workflow ───────────────────────────────────────────────────

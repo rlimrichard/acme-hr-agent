@@ -9,7 +9,7 @@ from typing import Any
 
 import httpx
 
-from src.agent.reasoner import synthesize_policy_answer
+from src.agent.reasoner import classify_workflow, synthesize_policy_answer
 
 
 @dataclass
@@ -99,7 +99,9 @@ class HRAgent:
         return any(re.search(p, lowered) for p in cls._EMAIL_DRAFT_PATTERNS)
 
     def answer(self, query: str, employee_id: str, confirmed: bool = False) -> AgentResponse:
-        kind = self._kind(query)
+        # Let the reasoning model classify first.  The local router is retained
+        # only for availability and validation failures from the provider.
+        kind = classify_workflow(query) or self._kind(query)
         if kind == "pto":
             return self._pto(query, employee_id)
         if kind == "remote":
