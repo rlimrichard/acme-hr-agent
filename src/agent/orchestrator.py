@@ -1,4 +1,4 @@
-"""Deterministic, inspectable orchestration for the three selected HR workflows."""
+"""Inspectable orchestration for specialist and general HR policy workflows."""
 
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ class MCPClient:
 
 
 class HRAgent:
-    """Routes PTO, remote-work, and expense questions to explicit MCP workflows."""
+    """Routes specialist requests and grounds every other policy question in RAG."""
 
     def __init__(self, client: MCPClient | None = None) -> None:
         self.client = client or MCPClient()
@@ -61,7 +61,7 @@ class HRAgent:
                 seen.add(key)
 
     @staticmethod
-    def _kind(query: str) -> str | None:
+    def _kind(query: str) -> str:
         lowered = query.lower()
         if any(word in lowered for word in ("pto", "time off", "leave", "vacation", "days off", "day off", "take off")) or re.search(r"\b\d+\s+(?:days?|weeks?)\s+off\b", lowered):
             return "pto"
@@ -72,7 +72,10 @@ class HRAgent:
             "per diem", "meal", "travel", "flight", "hotel", "mileage",
         )):
             return "expense"
-        return None
+        # All other questions enter the read-only general policy workflow.  It
+        # retrieves evidence before the LLM reasons over it, rather than being
+        # rejected by a keyword gate.
+        return "policy"
 
     # A policy question must never generate a manager email merely because it
     # mentions PTO or leave.  Draft only when the employee explicitly asks to
@@ -90,17 +93,13 @@ class HRAgent:
 
     def answer(self, query: str, employee_id: str, confirmed: bool = False) -> AgentResponse:
         kind = self._kind(query)
-        if kind is None:
-            return AgentResponse(
-                "I can help with PTO and leave, remote-work eligibility, or expense reimbursement. Please clarify which of those you need.",
-                escalated=True,
-                escalation_message="This request is outside the assistant's supported topics. Please contact HR for help.",
-            )
         if kind == "pto":
             return self._pto(query, employee_id)
         if kind == "remote":
             return self._remote(query, employee_id, confirmed)
-        return self._expense(query, employee_id)
+        if kind == "expense":
+            return self._expense(query, employee_id)
+        return self._policy(query, employee_id)
 
     def _pto(self, query: str, employee_id: str) -> AgentResponse:
         response = AgentResponse(answer="")
@@ -210,3 +209,40 @@ class HRAgent:
                 if not result.get("compliant", True) else None
             ),
         )
+
+    def _policy(self, query: str, employee_id: str) -> AgentResponse:
+        """Answer a read-only HR policy question using retrieved evidence."""
+        response = AgentResponse(answer="")
+        profile = self._invoke(response, "lookup_employee_profile", employee_id=employee_id)
+        policies = self._invoke(response, "search_policy_documents", query=query, top_k=5)
+        compliance = self._invoke(
+            response,
+            "check_policy_compliance",
+            employee_id=employee_id,
+            action=query,
+            context="general HR policy question",
+        )
+        chunks = policies.get("chunks", [])
+        self._sources(response, chunks)
+        fallback = (
+            f"[OFFICIAL POLICY] {compliance.get('verdict', '')} "
+            f"Relevant sections: {compliance.get('conditions', '')}."
+        )
+        response.answer = synthesize_policy_answer(
+            workflow="general HR policy",
+            query=query,
+            employee=profile,
+            chunks=chunks,
+            compliance=compliance,
+            fallback=fallback,
+        )
+        if not profile.get("found", False):
+            response.escalated = True
+            response.escalation_message = "Your employee record could not be found. Please contact HR to verify your profile."
+        elif not chunks:
+            response.escalated = True
+            response.escalation_message = "No relevant policy was found. Please contact People Operations for guidance."
+        elif not compliance.get("compliant", True):
+            response.escalated = True
+            response.escalation_message = "This request needs HR, Legal, or manager review before you proceed."
+        return response

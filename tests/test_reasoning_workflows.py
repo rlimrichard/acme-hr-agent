@@ -43,18 +43,21 @@ def test_discovers_eight_tools() -> None:
     ("Can I work from home abroad?",               "remote"),
     ("Can I expense a $500 monitor?",              "expense"),
     ("I need to reimburse my standing desk",       "expense"),
-    ("What is the office kitchen cleaning rota?",  None),
+    ("What is the office kitchen cleaning rota?",  "policy"),
+    ("Can I receive a $1,000 gift from a vendor?", "policy"),
 ])
-def test_kind_routing(query: str, expected: str | None) -> None:
+def test_kind_routing(query: str, expected: str) -> None:
     assert HRAgent._kind(query) == expected
 
 
-# ── Unknown / out-of-scope query ──────────────────────────────────────────────
+# ── General policy workflow ───────────────────────────────────────────────────
 
-def test_unknown_query_escalates_with_empty_trace() -> None:
-    response = _agent().answer("What is the dress code for client meetings?", "EMP-001")
-    assert response.escalated is True
-    assert response.tool_trace == []
+def test_general_policy_query_retrieves_before_answering() -> None:
+    response = _agent().answer("Can I receive a $1,000 gift from a vendor?", "EMP-001")
+    assert tool_names(response) == [
+        "lookup_employee_profile", "search_policy_documents", "check_policy_compliance",
+    ]
+    assert response.citations
 
 
 # ── Response structure ────────────────────────────────────────────────────────
