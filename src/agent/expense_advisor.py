@@ -87,12 +87,12 @@ def _synthesize(
     """Call an LLM via OpenRouter; fall back to a structured template if no key."""
     api_key = os.environ.get("OPENROUTER_API_KEY", "")
     if not api_key:
-        return _template_answer(query, employee, compliance)
+        return _template_answer(query, employee, compliance, section)
 
     try:
         from openai import OpenAI
     except ImportError:
-        return _template_answer(query, employee, compliance)
+        return _template_answer(query, employee, compliance, section)
 
     # Build deduplicated context block
     seen: set[str] = set()
@@ -129,12 +129,17 @@ def _synthesize(
             messages=[{"role": "user", "content": prompt}],
         )
         content = response.choices[0].message.content
-        return content if content is not None else _template_answer(query, employee, compliance)
+        return content if content is not None else _template_answer(query, employee, compliance, section)
     except Exception:
-        return _template_answer(query, employee, compliance)
+        return _template_answer(query, employee, compliance, section)
 
 
-def _template_answer(query: str, employee: dict, compliance: dict) -> str:
+def _template_answer(
+    query: str,
+    employee: dict,
+    compliance: dict,
+    section: dict | None = None,
+) -> str:
     """Structured fallback when OPENROUTER_API_KEY is not set."""
     name    = employee.get("name", "Employee")
     verdict = compliance.get("verdict", "")
@@ -150,6 +155,12 @@ def _template_answer(query: str, employee: dict, compliance: dict) -> str:
     ]
     if conds:
         lines += ["", "**Relevant policy excerpts:**", conds]
+    if section and section.get("found") and section.get("text"):
+        lines += [
+            "",
+            f"**Relevant policy section: [{section.get('doc_id', '')} § {section.get('section', '')}]**",
+            section["text"],
+        ]
     if cites:
         lines += ["", "**Sources:"] + [f"  {c}" for c in cites]
     lines += [
@@ -226,7 +237,9 @@ def run(employee_id: str, query: str) -> dict[str, Any]:
     # ── Step 3 ────────────────────────────────────────────────────────────────
     # Pick section hint from query keywords
     q_lower = query.lower()
-    if any(w in q_lower for w in ("desk", "chair", "monitor", "furniture", "home office")):
+    if "per diem" in q_lower or ("meal" in q_lower and "travel" in q_lower):
+        section_hint = "Meals While Traveling"
+    elif any(w in q_lower for w in ("desk", "chair", "monitor", "furniture", "home office")):
         section_hint = "Home Office Equipment"
     elif any(w in q_lower for w in ("travel", "flight", "hotel", "meal")):
         section_hint = "Travel Expenses"
