@@ -53,7 +53,7 @@ def test_kind_routing(query: str, expected: str) -> None:
 # ── General policy workflow ───────────────────────────────────────────────────
 
 def test_general_policy_query_retrieves_before_answering() -> None:
-    response = _agent().answer("Can I receive a $1,000 gift from a vendor?", "EMP-001")
+    response = _agent().answer("Can I receive a 1000 dollar gift from a vendor?", "EMP-001")
     assert tool_names(response) == [
         "lookup_employee_profile", "search_policy_documents", "check_policy_compliance",
     ]

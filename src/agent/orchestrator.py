@@ -230,8 +230,13 @@ class HRAgent:
             for chunk in chunks[:3]
             if chunk.get("text")
         )
-        amount_match = re.search(r"\$\s*([\d,]+(?:\.\d{1,2})?)", query)
-        amount = float(amount_match.group(1).replace(",", "")) if amount_match else None
+        amount_match = re.search(
+            r"(?:\$\s*([\d,]+(?:\.\d{1,2})?)|\b([\d,]+(?:\.\d{1,2})?)\s*dollars?\b)",
+            query,
+            re.IGNORECASE,
+        )
+        amount_text = next((group for group in amount_match.groups() if group), None) if amount_match else None
+        amount = float(amount_text.replace(",", "")) if amount_text else None
         lowered = query.lower()
         if "gift" in lowered and "vendor" in lowered and amount is not None and amount > 75:
             fallback = (
