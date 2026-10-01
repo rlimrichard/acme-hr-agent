@@ -63,6 +63,13 @@ class HRAgent:
     @staticmethod
     def _kind(query: str) -> str:
         lowered = query.lower()
+        # A benefit offered by a vendor is an ethics/gifts question, even when
+        # it uses words such as "vacation" or "travel" that otherwise belong
+        # to the PTO or expense workflows.
+        if "vendor" in lowered and any(word in lowered for word in (
+            "gift", "vacation", "trip", "travel", "flight", "hotel", "ticket", "event",
+        )):
+            return "policy"
         if any(word in lowered for word in ("pto", "time off", "leave", "vacation", "days off", "day off", "take off")) or re.search(r"\b\d+\s+(?:days?|weeks?)\s+off\b", lowered):
             return "pto"
         if any(word in lowered for word in ("remote", "work from", "abroad", "spain", "another state", "international")):
@@ -238,13 +245,21 @@ class HRAgent:
         amount_text = next((group for group in amount_match.groups() if group), None) if amount_match else None
         amount = float(amount_text.replace(",", "")) if amount_text else None
         lowered = query.lower()
-        if "gift" in lowered and "vendor" in lowered and amount is not None and amount > 75:
+        vendor_benefit = "vendor" in lowered and any(word in lowered for word in (
+            "gift", "vacation", "trip", "travel", "flight", "hotel", "ticket", "event",
+        ))
+        is_over_limit_gift = vendor_benefit and (
+            (amount is not None and amount > 75)
+            or any(word in lowered for word in ("vacation", "trip", "travel", "flight", "hotel"))
+        )
+        if is_over_limit_gift:
+            item = f"A ${amount:,.0f} gift" if amount is not None else "A vendor-paid vacation or trip"
             fallback = (
                 "[OFFICIAL POLICY] No. You may accept a vendor gift only when its value "
-                "is $75 or less per source per year. A $%s gift exceeds that limit and must "
+                "is $75 or less per source per year. %s exceeds that limit and must "
                 "be declined; if it was physically received, share it with the team and disclose "
                 "it to your manager. [POL-WPC-009 § 7.1 Receiving Gifts]\n\n%s"
-            ) % (f"{amount:,.0f}", evidence)
+            ) % (item, evidence)
             response.escalated = True
             response.escalation_message = "Do not accept this vendor gift without manager or Legal guidance."
         else:

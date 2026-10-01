@@ -45,6 +45,7 @@ def test_discovers_eight_tools() -> None:
     ("I need to reimburse my standing desk",       "expense"),
     ("What is the office kitchen cleaning rota?",  "policy"),
     ("Can I receive a $1,000 gift from a vendor?", "policy"),
+    ("Can I accept a Hawaiian vacation from a vendor?", "policy"),
 ])
 def test_kind_routing(query: str, expected: str) -> None:
     assert HRAgent._kind(query) == expected
@@ -58,6 +59,15 @@ def test_general_policy_query_retrieves_before_answering() -> None:
         "lookup_employee_profile", "search_policy_documents", "check_policy_compliance",
     ]
     assert response.citations
+    assert "must be declined" in response.answer
+    assert response.escalated is True
+
+
+def test_vendor_paid_vacation_is_not_routed_to_pto() -> None:
+    response = _agent().answer("Can I accept a Hawaiian vacation from a vendor?", "EMP-001")
+    assert tool_names(response) == [
+        "lookup_employee_profile", "search_policy_documents", "check_policy_compliance",
+    ]
     assert "must be declined" in response.answer
     assert response.escalated is True
 
