@@ -77,6 +77,7 @@ def require_admin_api(request: Request) -> None:
 
 _LOG_DIR = Path(__file__).parents[2] / "logs"
 _CHROMA_SQLITE = Path(__file__).parents[2] / "chroma_db" / "chroma.sqlite3"
+_EMPLOYEES_FILE = Path(__file__).parents[2] / "data" / "employees.json"
 
 
 def _quoted_sql_identifier(name: str) -> str:
@@ -342,6 +343,23 @@ def database_overview(_admin: None = Depends(require_admin_api)) -> dict[str, An
             for table in tables
         ]
     return {"database": _CHROMA_SQLITE.name, "read_only": True, "tables": overview}
+
+
+@app.get("/admin/hr-database")
+def hr_database(_admin: None = Depends(require_admin_api)) -> dict[str, Any]:
+    """Return the read-only HR employee directory used by the agent."""
+    if not _EMPLOYEES_FILE.is_file():
+        raise HTTPException(status_code=404, detail="HR employee directory is not available")
+    try:
+        records = json.loads(_EMPLOYEES_FILE.read_text(encoding="utf-8")).get("employees", [])
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=500, detail="HR employee directory is invalid") from exc
+    columns = [
+        "employee_id", "name", "role", "department", "office_location",
+        "remote_status", "hire_date", "manager_id", "pto_balance_days",
+    ]
+    employees = [{column: employee.get(column) for column in columns} for employee in records]
+    return {"source": _EMPLOYEES_FILE.name, "read_only": True, "columns": columns, "employees": employees}
 
 
 @app.get("/admin/database/{table_name}")

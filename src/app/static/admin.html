@@ -37,7 +37,8 @@
         <button class="admin-tab admin-tab--active" id="tab-conversations" role="tab" aria-selected="true" aria-controls="panel-conversations">Conversations</button>
         <button class="admin-tab" id="tab-prompts" role="tab" aria-selected="false" aria-controls="panel-prompts">Prompt audit</button>
         <button class="admin-tab" id="tab-tickets" role="tab" aria-selected="false" aria-controls="panel-tickets">Tickets</button>
-        <button class="admin-tab" id="tab-database" role="tab" aria-selected="false" aria-controls="panel-database">Database</button>
+        <button class="admin-tab" id="tab-hr-database" role="tab" aria-selected="false" aria-controls="panel-hr-database">HR database</button>
+        <button class="admin-tab" id="tab-database" role="tab" aria-selected="false" aria-controls="panel-database">Policy database</button>
       </div>
 
       <!-- Prompt audit panel -->
@@ -72,6 +73,12 @@
         <div class="admin-entries" id="tickets-list">
           <div class="admin-empty">Loading tickets…</div>
         </div>
+      </div>
+
+      <!-- Read-only employee directory -->
+      <div id="panel-hr-database" role="tabpanel" aria-labelledby="tab-hr-database" style="display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
+        <div class="admin-toolbar"><span class="admin-count" id="hr-database-count"></span></div>
+        <div class="admin-entries" id="hr-database-list"><div class="admin-empty">Loading HR database…</div></div>
       </div>
 
       <!-- Read-only Chroma SQLite browser -->

@@ -37,10 +37,12 @@ async function fetchJSON(url) {
 const tabConversations = document.getElementById('tab-conversations');
 const tabPrompts       = document.getElementById('tab-prompts');
 const tabTickets       = document.getElementById('tab-tickets');
+const tabHrDatabase    = document.getElementById('tab-hr-database');
 const tabDatabase      = document.getElementById('tab-database');
 const panelConversations = document.getElementById('panel-conversations');
 const panelPrompts       = document.getElementById('panel-prompts');
 const panelTickets       = document.getElementById('panel-tickets');
+const panelHrDatabase    = document.getElementById('panel-hr-database');
 const panelDatabase      = document.getElementById('panel-database');
 
 function switchTab(tab) {
@@ -48,6 +50,7 @@ function switchTab(tab) {
     conversations: [tabConversations, panelConversations],
     prompts: [tabPrompts, panelPrompts],
     tickets: [tabTickets, panelTickets],
+    hrDatabase: [tabHrDatabase, panelHrDatabase],
     database: [tabDatabase, panelDatabase],
   };
   Object.entries(tabs).forEach(([name, [button, panel]]) => {
@@ -66,6 +69,10 @@ tabPrompts.addEventListener('click', () => {
 tabTickets.addEventListener('click', () => {
   switchTab('tickets');
   if (!ticketsLoaded) loadTickets();
+});
+tabHrDatabase.addEventListener('click', () => {
+  switchTab('hrDatabase');
+  if (!hrDatabaseLoaded) loadHrDatabase();
 });
 tabDatabase.addEventListener('click', () => {
   switchTab('database');
@@ -287,7 +294,39 @@ async function initPrompts() {
   } catch { setStatus(promptList, 'Could not reach the server.'); }
 }
 
-// ---- Read-only database browser ----
+// ---- Read-only HR employee directory ----
+const hrDatabaseList  = document.getElementById('hr-database-list');
+const hrDatabaseCount = document.getElementById('hr-database-count');
+let hrDatabaseLoaded = false;
+
+function renderHrDatabase(data) {
+  hrDatabaseList.textContent = '';
+  const employees = data.employees || [];
+  hrDatabaseCount.textContent = `${employees.length} employee${employees.length !== 1 ? 's' : ''} · read-only`;
+  if (!employees.length) { setStatus(hrDatabaseList, 'No employee records are available.'); return; }
+  const table = document.createElement('table');
+  table.className = 'database-table';
+  const head = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  data.columns.forEach((column) => { const cell = document.createElement('th'); cell.textContent = column.replace(/_/g, ' '); headRow.appendChild(cell); });
+  head.appendChild(headRow); table.appendChild(head);
+  const body = document.createElement('tbody');
+  employees.forEach((employee) => {
+    const row = document.createElement('tr');
+    data.columns.forEach((column) => { const cell = document.createElement('td'); cell.textContent = String(employee[column] ?? ''); row.appendChild(cell); });
+    body.appendChild(row);
+  });
+  table.appendChild(body); hrDatabaseList.appendChild(table);
+}
+
+async function loadHrDatabase() {
+  hrDatabaseLoaded = true;
+  setStatus(hrDatabaseList, 'Loading HR database…');
+  try { renderHrDatabase(await fetchJSON('/admin/hr-database')); }
+  catch { setStatus(hrDatabaseList, 'Failed to load the HR database.'); }
+}
+
+// ---- Read-only policy database browser ----
 const databaseTableSelect = document.getElementById('database-table-select');
 const databaseList        = document.getElementById('database-list');
 const databaseCount       = document.getElementById('database-count');
