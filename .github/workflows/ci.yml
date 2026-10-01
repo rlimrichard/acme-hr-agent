@@ -68,6 +68,8 @@ jobs:
             # Pull latest code from git clone
             cd /opt/acme-hr-agent/acme-hr-agent
             git pull --ff-only
+            # Install any new/updated dependencies
+            /opt/acme-hr-agent/acme-hr-agent/.venv/bin/pip install -q -r requirements.txt
             # Sync source files to the service working directory
             # (excludes: .git, .venv, chroma_db, data — those stay in place)
             rsync -a \
