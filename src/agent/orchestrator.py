@@ -369,7 +369,7 @@ class HRAgent:
             email_block = ""
         if "sick" in lowered and any(word in lowered for word in ("vacation", "separate", "pto")):
             deterministic_answer = (
-                "[OFFICIAL POLICY] No. Acme Corp uses one unified PTO bank: vacation, personal, "
+                "No. Acme Corp uses one unified PTO bank: vacation, personal, "
                 "and sick time all draw from the same balance. There is no separate sick-leave bucket. "
                 "[POL-PTO-002 § 7.1 Use of PTO for Sick Leave] "
                 f"{amount_text}."
@@ -400,10 +400,31 @@ class HRAgent:
                 "[POL-PTO-002 § 3.1 Requesting Time Off; § 3.2 Approval Process]. "
                 "What type of leave, dates, and number of days do you need?"
             )
+        elif re.search(r"\b(?:balance|remaining|left)\b", lowered) and requested is None:
+            deterministic_answer = (
+                f"You have {balance.get('pto_balance_days', 0)} days of PTO remaining. "
+                "Your manager approves specific time-off requests "
+                "[POL-PTO-002 § 3.2 Approval Process]."
+            )
+        elif requested is not None and not enough:
+            deterministic_answer = (
+                f"That would use about {requested:g} workdays, but your current PTO balance "
+                f"is {balance.get('pto_balance_days', 0)} days. Ask your manager or People "
+                "Operations about options before making plans; time off still needs manager "
+                "approval [POL-PTO-002 § 3.2 Approval Process]."
+            )
+        elif requested is not None:
+            deterministic_answer = (
+                f"About {requested:g} workdays would fit within your current "
+                f"{balance.get('pto_balance_days', 0)}-day PTO balance. Your manager still "
+                "needs to approve the dates and team coverage "
+                "[POL-PTO-002 § 3.2 Approval Process]."
+            )
         else:
             deterministic_answer = (
-                f"[OFFICIAL POLICY] {amount_text}. PTO requires direct-manager approval and may be limited "
-                f"by team coverage or a designated blackout period. {compliance['verdict']}"
+                f"Your current PTO balance is {balance.get('pto_balance_days', 0)} days. "
+                "A day off can draw from that balance, but your manager needs to approve "
+                "the date and team coverage [POL-PTO-002 § 3.2 Approval Process]."
             )
         self._record_answer_prompt(
             response,
@@ -422,6 +443,9 @@ class HRAgent:
             compliance=compliance,
             fallback=deterministic_answer,
         ) + email_block
+        if ("no explicit prohibitions found" in response.answer.lower()
+                or "verify the conditions in the cited sections" in response.answer.lower()):
+            response.answer = deterministic_answer + email_block
         if parental_accrual and not all(word in response.answer.lower() for word in ("parental", "accru", "leave")):
             response.answer = deterministic_answer + email_block
         if "accru" in lowered and "year" in lowered and "accru" not in response.answer.lower():
@@ -461,6 +485,9 @@ class HRAgent:
             ),
             top_k=self.top_k,
         )
+        eligibility = self._invoke(response, "get_policy_section", doc_id="POL-RW-001", section="2. Eligibility")
+        if eligibility.get("found"):
+            policies["chunks"].append({**eligibility, "snippet": eligibility.get("text", "")[:180]})
         compliance = self._invoke(response, "check_policy_compliance", employee_id=employee_id, action=query,
                                   context=f"remote status: {profile.get('remote_status', 'unknown')}")
         self._sources(response, policies["chunks"])
@@ -475,14 +502,21 @@ class HRAgent:
             ticket_text = ""
             response.requires_confirmation = location_request
         policy_citation = next(
-            (f"[{item['doc_id']} § {item['section']}]" for item in response.citations if item['doc_id'] == "POL-RW-001"),
+            (f"[{item['doc_id']} § {item['section']}]" for item in response.citations
+             if item['doc_id'] == "POL-RW-001" and "eligibility" in item["section"].lower()),
             "[POL-RW-001 § 2. Eligibility]",
         )
         if location_request:
+            proposal = re.sub(r"^(?:can|could|may) i work\b", "Working", query.strip(), flags=re.I)
+            proposal = re.sub(r"^i (?:want|plan|would like) to work\b", "Working", proposal, flags=re.I)
+            proposal = proposal.rstrip("?. ")
+            if not proposal.lower().startswith("working"):
+                proposal = "Your proposed work location"
             deterministic_answer = (
-                "Your proposed remote-work location needs approval before you make arrangements. "
-                "Your manager and People Operations should review role eligibility, work hours, "
-                f"and security requirements under the Remote Work Policy {policy_citation}."
+                f"{proposal} is not automatically covered by your current work arrangement. "
+                f"Remote-work eligibility depends on your role {policy_citation}. Ask your "
+                "manager and People Operations to review the location, duration, and schedule "
+                "for approval before you make arrangements."
             )
         else:
             deterministic_answer = (
@@ -513,6 +547,9 @@ class HRAgent:
             r"\b(?:abroad|overseas|another country|international|spain|canada|france|japan|thailand|germany|pakistan)\b",
             query.lower(),
         ):
+            response.answer = deterministic_answer
+        named_location = re.search(r"\bfrom\s+([A-Z][a-z]+)\b", query)
+        if named_location and named_location.group(1).lower() not in response.answer.lower():
             response.answer = deterministic_answer
         response.answer += ticket_text
         response.escalated = location_request

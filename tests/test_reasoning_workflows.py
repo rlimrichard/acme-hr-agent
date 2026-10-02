@@ -292,6 +292,18 @@ def test_pto_answer_mentions_actual_balance() -> None:
     assert "14.5" in response.answer
 
 
+def test_pto_fallback_is_direct_without_compliance_boilerplate(monkeypatch) -> None:
+    _force_deterministic_routing(monkeypatch)
+    balance = _agent().answer("How much PTO time off do I have left?", "EMP-004")
+    assert "22.0 days of PTO remaining" in balance.answer
+    assert "No explicit prohibitions" not in balance.answer
+
+    long_leave = _agent().answer("I want to take 3 weeks vacation in December.", "EMP-002")
+    assert "15 workdays" in long_leave.answer
+    assert "8.0 days" in long_leave.answer
+    assert "No explicit prohibitions" not in long_leave.answer
+
+
 def test_sick_leave_question_uses_unified_pto_policy() -> None:
     response = _agent().answer("Is sick leave separate from vacation?", "EMP-001")
     assert "unified PTO bank" in response.answer
@@ -328,6 +340,8 @@ def test_remote_work_requires_confirmation_before_ticket() -> None:
     response = _agent().answer("Can I work from Spain for 6 weeks?", "EMP-001")
     assert response.requires_confirmation is True
     assert "create_mock_hr_ticket" not in tool_names(response)
+    assert "Spain" in response.answer
+    assert "[POL-RW-001 § 2. Eligibility]" in response.answer
 
 
 def test_remote_retrieval_leads_with_employee_question() -> None:
@@ -365,7 +379,7 @@ def test_deterministic_remote_cases_require_confirmation(monkeypatch, query, emp
     _force_deterministic_routing(monkeypatch)
     response = _agent().answer(query, employee_id)
     assert tool_names(response) == [
-        "lookup_employee_profile", "search_policy_documents", "check_policy_compliance",
+        "lookup_employee_profile", "search_policy_documents", "get_policy_section", "check_policy_compliance",
     ]
     assert response.citations
     assert response.escalated is True
@@ -383,12 +397,13 @@ def test_country_based_work_arrangements_use_remote_workflow(monkeypatch, query)
     _force_deterministic_routing(monkeypatch)
     response = _agent().answer(query, "EMP-002")
     assert tool_names(response) == [
-        "lookup_employee_profile", "search_policy_documents", "check_policy_compliance",
+        "lookup_employee_profile", "search_policy_documents", "get_policy_section", "check_policy_compliance",
     ]
     assert response.escalated is True
     assert response.requires_confirmation is True
     assert response.citations[0]["doc_id"] == "POL-RW-001"
-    assert "Your proposed remote-work location needs approval" in response.answer
+    assert "not automatically covered by your current work arrangement" in response.answer
+    assert "2. Eligibility" in response.answer
     assert "Would you like me to create an HR review request?" in response.answer
     assert "[OFFICIAL POLICY]" not in response.answer
 

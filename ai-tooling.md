@@ -4,7 +4,11 @@
 
 ### Claude Code (Anthropic)
 
-Claude Code (the Anthropic CLI) was the primary AI tool used throughout this project. It was used interactively via the VS Code extension in an agentic mode where it could read, write, and edit files, run shell commands, and reason about the codebase across multiple turns.
+Claude Code (the Anthropic CLI) was used in the initial project build through the VS Code extension. It helped scaffold the policy corpus, ingestion pipeline, tool schemas, and initial evaluation suite. The team reviewed and tested the generated work.
+
+### Codex (OpenAI)
+
+Codex was used for later integration and repair work. It inspected the running OCI service and audit traces, edited the orchestrator and web app, added employee authentication and review queues, replaced the REST-only agent integration with actual MCP discovery and tool calls, strengthened CI startup checks, and revised the evaluation runner. We validated these changes with local tests, GitHub Actions, and live service checks. The latest work also corrected mixed-policy routing, out-of-scope handling, and fallback answer relevance; any production-quality claims depend on a fresh deployed evaluation rather than generated code alone.
 
 ---
 
@@ -54,9 +58,9 @@ The 8 MCP tool schemas (input/output JSON Schema definitions) were generated wit
 
 ### MCP Server Implementation (`src/mcp/server.py`)
 
-Claude Code generated the initial MCP server using `FastMCP` from the `mcp` Python SDK. The tool logic — embedding-backed retrieval for `search_policy_documents` and `get_policy_section`, JSON file reads for the employee data tools, in-memory dict for `create_mock_hr_ticket`, and the prohibition-keyword heuristic for `check_policy_compliance` — was wired correctly on the first generation.
+Claude Code generated the initial MCP server using `FastMCP` from the `mcp` Python SDK. Its first-pass tool logic included embedding-backed policy retrieval, JSON-backed employee lookups, ticket creation, and a prohibition-keyword compliance heuristic. Ticket records were later made file-backed so review queues survive service restarts.
 
-**What needed correction — SDK dependency issues at runtime:** The generated code used `from mcp.server.fastmcp import FastMCP`. At runtime, `FastMCP` was not resolvable in the installed mcp 2.x package. Rather than chase version-specific SDK paths, the server was rewritten as a plain FastAPI REST server (`GET /tools`, `POST /tools/{name}`, `GET /health`). This eliminated the SDK dependency entirely and matched exactly how the orchestrator's `MCPClient` (using `httpx`) calls tools. The rewrite was clean: a 440-line FastAPI server with the same tool logic, no protocol overhead.
+**What needed correction — protocol integration:** An intermediate deployment exposed the tools only through REST (`GET /tools`, `POST /tools/{name}`). That was useful for smoke tests but did not satisfy the project's MCP requirement. Codex later added the official MCP Python SDK, registered the eight tools on a Streamable HTTP endpoint at `/mcp/`, and changed the orchestrator to use `tools/list` and `tools/call`. The REST routes remain only as diagnostic compatibility endpoints. A protocol test and app-startup discovery check now guard against reverting to REST-only integration.
 
 **What worked well:** The lazy singleton pattern for the employees dict (mirroring the existing pattern in `retrieval.py`) was applied correctly without prompting. The 25-check `scripts/test_mcp.py` test suite was generated in one pass and all checks passed immediately after the rewrite.
 
@@ -70,7 +74,7 @@ The project was initially configured to use the Anthropic API directly (`anthrop
 
 ### Evaluation Suite (`evaluation/questions.json`, `evaluation/eval_runner.py`)
 
-25 questions and an automated runner were generated with Claude Code. The question set was designed from first principles: employee IDs and PTO balances were embedded as `gold_keywords` so the runner can verify the agent actually retrieved the right employee record. The eval runner scores 5 metrics automatically without an LLM judge. First run result: 88% overall pass rate (22/25); multi_doc category 2/5 due to single-workflow routing selecting one policy domain per request.
+Claude Code produced the initial 25-question set and automated runner. Codex later added short reference answers, authenticated employee requests, genuine `top_k` variation, citation and tool-selection checks, clarification and workflow metrics, and a safer default that does not create test tickets. The initial 88% figure is historical and must not be presented as current performance. A later live run exposed zero passing multi-document cases, which led to the routing and evidence fixes. The current runner saves full answer text for review and reports its lexical groundedness measure explicitly as a proxy, not a semantic judge.
 
 ---
 
@@ -86,7 +90,7 @@ The project plan, including engineer assignments, task breakdown, daily timeline
 
 ### Design Documentation (`design-and-evaluation.md`, this file)
 
-Both documentation files were written with Claude Code, using the codebase and project plan as source material. The ASCII architecture diagram, tool table, guardrail table, and demo task sequences were generated from reading `ingest.py`, `retrieval.py`, and `mcp_tools_schema.json` directly.
+The initial architecture and design documents were drafted with Claude Code using the codebase and project plan as source material. Codex later revised them to reflect authenticated workflows, the deployed MCP SDK transport, production layout, and evaluation limitations. Documents are checked against running code because earlier generated descriptions became stale after implementation changed.
 
 **What worked well:** Claude produced accurate documentation by reading the actual code rather than relying on the project prompt alone. The demo task tool-call sequences correctly matched the tool schemas and employee data fields.
 
@@ -111,4 +115,4 @@ Both documentation files were written with Claude Code, using the codebase and p
 
 ## Time Impact
 
-AI tooling reduced estimated development time for the knowledge layer (RAG pipeline, policy corpus, mock data, MCP tool schemas) from approximately 3–4 days of engineering work to approximately 1 day, with the remaining time spent on integration, testing, and iteration. The evaluation suite (25 questions, automated runner, 5 scored metrics) would typically require a full day; it was generated and validated in under 2 hours. The CI/CD pipeline, deployment configuration, and documentation that would typically be written last and under time pressure were instead drafted in parallel with the code — similarly compressing each from ~half a day to 1–2 hours.
+The initial AI-assisted scaffolding was faster than writing each layer from scratch, but the largest effort was validation and repair: protocol compliance, deployment authentication, answer relevance, evaluation labels, and documentation all required multiple test-and-debug cycles. We do not treat an AI-generated implementation or an early passing score as evidence of correctness until it has been exercised against the running system.

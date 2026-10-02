@@ -21,6 +21,9 @@ acme-hr-agent/
 ├── scripts/
 │   ├── test_rag.py          # RAG diagnostic tests (coverage, metadata, retrieval quality)
 │   ├── test_mcp.py          # MCP tool smoke tests (25 checks)
+│   ├── test_app_start.py    # Starts the app and verifies health plus MCP discovery
+│   ├── run_regression_tests.py # Deterministic workflow regression report for /admin
+│   ├── deploy.sh            # Manual OCI deployment path
 │   └── convert_policies.py  # One-off: converts .md policies to .html/.txt/.pdf
 ├── data/
 │   ├── policies/            # 20 HR policy files (.md × 5, .html × 5, .txt × 5, .pdf × 5)
@@ -31,7 +34,9 @@ acme-hr-agent/
 │   └── api_contract.json    # Web app API contracts
 ├── evaluation/
 │   ├── questions.json       # 25-question eval set (policy Q&A, multi-doc, agentic, ambiguous, OOS)
-│   └── eval_runner.py       # Automated eval runner — POSTs to /chat, scores metrics, writes results.csv
+│   ├── gold_answers.json    # Short human-authored reference answers
+│   ├── eval_runner.py       # Authenticated eval runner — scores /chat responses and writes CSV
+│   └── summarize_results.py # Fixed 15-case latency sample and top-k comparison
 ├── design-and-evaluation.md # Architecture, RAG design, MCP design, evaluation plan
 ├── deployed.md              # Live deployment details and latency measurements
 ├── ai-tooling.md            # AI tooling usage log
@@ -131,9 +136,11 @@ This takes ~30 seconds on the first run (model load + encoding). Re-running is i
 
 Each employee question follows a grounded, inspectable workflow:
 
-1. **Routing.** General greetings and capability questions receive a direct help response. Other questions go to the configured OpenRouter model for classification as `pto`, `remote`, `expense`, or general `policy`. It is constrained to return one allowed label. A deterministic router is used if the model is unavailable or returns an invalid label. Vendor-provided gifts, travel, and other benefits are treated as ethics/policy questions rather than PTO or expenses.
-2. **Hybrid policy retrieval.** Every workflow searches with the employee's original question first, then adds narrow workflow anchors. Exact multi-word phrases found in policy section names (for example, `sick leave`) receive a ranking preference over nearby semantic matches.
-3. **Workflow-specific checks.** PTO looks up the employee profile and balance; an explicit PTO submission creates a manager-review request only after confirmation. Remote work creates an internal HR review request only after explicit confirmation. Expenses retrieve a relevant reimbursement section and assess compliance; general policy questions retrieve the applicable HR or conduct rules.
+1. **Routing.** General greetings and capability questions receive a direct help response. Other questions go to the configured OpenRouter model for classification as `pto`, `remote`, `expense`, general `policy`, or `out_of_scope`. A deterministic router is used if the model is unavailable or returns an invalid label. Narrow safeguards keep vendor gifts out of PTO, existing remote employees' expenses out of the location-change workflow, and combined policy questions in a multi-document path. Clearly unrelated requests are redirected without inventing policy citations.
+2. **Hybrid policy retrieval.** Workflows search using the employee's original question first, then add narrow workflow anchors. Exact section names receive a ranking preference. Combined questions retrieve the governing sections from each relevant policy through MCP. If Chroma is unavailable, the lexical fallback reads all four supported policy formats.
+3. **Workflow-specific checks.** PTO looks up the employee profile and balance; an explicit PTO submission creates a manager-review request only after confirmation. A proposed change of remote-work location can create an internal HR review request after confirmation; an informational approval question does not offer a ticket. Expenses retrieve the relevant reimbursement and, where needed, remote-equipment sections. Ambiguous requests ask for missing details rather than drafting an email.
+4. **Grounded synthesis.** The LLM receives minimal employee context, retrieved policy excerpts, a compliance assessment, and a relevant deterministic fallback. It must cite policy facts and may not invent approvals, dates, balances, or actions. If the LLM is unavailable or misses a required topic in a high-risk cross-policy answer, the evidence-bounded fallback is returned.
+5. **High-confidence safeguards.** Deterministic policy rules remain for explicit thresholds and critical distinctions, including the unified PTO bank for vacation and sick leave, vendor gifts over $75, travel meal per-diem limits, the remote ergonomics stipend, and unanswered PTO-accrual rules during parental leave.
 
 ### Human review and employee sign-in
 
@@ -142,8 +149,6 @@ The chat and Requests page require employee sign-in using an employee ID and pas
 When an HR request is created, employees in People Operations see it in their Requests review queue. When a PTO request is created, only that employee's recorded direct manager sees it in the team PTO queue. A reviewer must include a message when approving or denying. The employee sees their own pending requests and then the closed decision and message. These are internal app decisions stored in `data/ticket_reviews.jsonl`; they are not submissions to an external HR or payroll system.
 
 Provision demo accounts once on a fresh checkout with `PORTAL_INITIAL_PASSWORD=acme123 python -m scripts.provision_portal_users`. All five synthetic employees then use password `acme123`; select an employee ID on `/login`. The script stores salted hashes in ignored `data/portal_users.json` and refuses to overwrite existing accounts. This is a shared **demo-only** password, not appropriate for real employee data. For an existing installation, use its already-provisioned password or rotate accounts separately.
-4. **Grounded synthesis.** The LLM receives only minimal employee context, retrieved policy excerpts, a compliance assessment, and a deterministic fallback. It must cite policy facts and may not invent approvals, dates, balances, or actions. If the LLM is unavailable, the fallback answer is returned.
-5. **High-confidence safeguards.** Deterministic policy rules remain for explicit thresholds and critical distinctions, including the unified PTO bank for vacation and sick leave, vendor gifts over $75, vendor-paid travel, and travel meal per-diem limits.
 
 ### Privacy and admin auditability
 
@@ -272,8 +277,10 @@ curl -b /tmp/acme-emp001.cookies -X POST http://localhost:8080/chat \
 
 **Expected tool sequence:**
 1. `lookup_employee_profile` (EMP-001 — confirms fully remote)
-2. `get_policy_section` (POL-EXP-001, "Home Office Equipment")
-3. `check_policy_compliance` (action: expense $1200 standing desk, context: fully remote)
+2. `search_policy_documents` (expense and equipment evidence)
+3. `get_policy_section` (POL-EXP-001, "Office Supplies (Remote)")
+4. `get_policy_section` (POL-RW-001, "5.2 Ergonomics")
+5. `check_policy_compliance` (action: expense $1200 standing desk, context: fully remote)
 
 ---
 
@@ -291,7 +298,7 @@ GitHub Actions runs on every push and pull request to `main`. Passing tests on `
 7. Start the real ASGI app and verify `/health` and MCP discovery (`python scripts/test_app_start.py`)
 8. *(on pass)* SSH into `hrapp.elcaro.io` → `git pull` → rsync → install dependencies → regression tests → `systemctl restart` → health check
 
-**Pull requests** run steps 1–6 only — they never deploy.
+**Pull requests** run every test step, including app startup and MCP discovery; they never deploy.
 
 **Required GitHub secret:** `DEPLOY_SSH_KEY` — the OCI server's SSH private key, set under *Settings → Secrets and variables → Actions*.
 
@@ -340,7 +347,7 @@ Results are written to `evaluation/results.csv`. The runner exits with code 1 if
 | Ambiguous requests | 3 |
 | Out-of-scope requests | 2 |
 
-**Metrics scored per question:** escalation/clarification accuracy, tool recall and selection F1, citation recall and evidence-backed citation accuracy, keyword match against annotated gold answers, workflow completion, and action safety. A lexical evidence-overlap score is reported as a **groundedness proxy**, not a semantic correctness judgment. Latency p50/p95 is measured across the 25 chat requests (authentication excluded).
+**Metrics scored per question:** escalation/clarification accuracy, tool recall and selection F1, citation recall and evidence-backed citation accuracy, keyword match against annotated gold concepts, workflow completion, and action safety. The overall pass rule also requires adequate tool selection, supported citations, clarification, and workflow completion. A lexical overlap score against policy and structured tool evidence is reported as a **groundedness proxy**, not a semantic correctness judgment. The runner measures warm-request latency p50/p95 across all 25 chat requests (authentication excluded); `evaluation/summarize_results.py` separately reports p50/p95 for a fixed, category-spanning 15-case sample. The CSV also records the full bounded answer for human comparison with its reference answer.
 
 **Ablation (top-k sweep):** Each request now applies `top_k` to the policy-search tool, rather than merely labeling the CSV. Use separate output paths:
 
@@ -348,7 +355,10 @@ Results are written to `evaluation/results.csv`. The runner exits with code 1 if
 PORTAL_EVAL_PASSWORD=acme123 python evaluation/eval_runner.py --endpoint http://localhost:8080 --top-k 3 --out evaluation/results-k3.csv
 PORTAL_EVAL_PASSWORD=acme123 python evaluation/eval_runner.py --endpoint http://localhost:8080 --top-k 5 --out evaluation/results-k5.csv
 PORTAL_EVAL_PASSWORD=acme123 python evaluation/eval_runner.py --endpoint http://localhost:8080 --top-k 8 --out evaluation/results-k8.csv
+python evaluation/summarize_results.py evaluation/results-k3.csv evaluation/results-k5.csv evaluation/results-k8.csv
 ```
+
+Compare runs only when endpoint, deployed commit, question set, and model configuration are held constant. The comparison script lists the 15 preselected latency-case IDs. `evaluation/results.csv` is an older historical artifact; see the dated live results in [`design-and-evaluation.md`](design-and-evaluation.md) for current claims.
 
 Full evaluation design and results are in [`design-and-evaluation.md`](design-and-evaluation.md).
 

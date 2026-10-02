@@ -43,7 +43,7 @@
       "confirmed": false,
       "expected_workflow": "remote",
       "expected_escalated": false,
-      "expected_tools": ["lookup_employee_profile", "search_policy_documents", "check_policy_compliance"],
+      "expected_tools": ["lookup_employee_profile", "search_policy_documents", "get_policy_section", "check_policy_compliance"],
       "expected_citation_docs": ["POL-RW-001"],
       "gold_keywords": ["remote", "approval", "policy"],
       "notes": "An informational approval question should be answered without opening or offering a case."
@@ -82,7 +82,7 @@
       "confirmed": false,
       "expected_workflow": "remote",
       "expected_escalated": true,
-      "expected_tools": ["lookup_employee_profile", "search_policy_documents", "check_policy_compliance"],
+      "expected_tools": ["lookup_employee_profile", "search_policy_documents", "get_policy_section", "check_policy_compliance"],
       "expected_citation_docs": ["POL-RW-001"],
       "gold_keywords": ["remote", "approval", "policy"],
       "notes": "Remote workflow with 'work from' trigger keyword."
@@ -212,7 +212,7 @@
       "confirmed": false,
       "expected_workflow": "remote",
       "expected_escalated": true,
-      "expected_tools": ["lookup_employee_profile", "search_policy_documents", "check_policy_compliance"],
+      "expected_tools": ["lookup_employee_profile", "search_policy_documents", "get_policy_section", "check_policy_compliance"],
       "expected_citation_docs": ["POL-RW-001"],
       "gold_keywords": ["remote", "approval", "spain"],
       "notes": "Demo Task 2. Remote workflow always escalates for manager/HR approval."
@@ -264,7 +264,7 @@
       "confirmed": true,
       "expected_workflow": "remote",
       "expected_escalated": true,
-      "expected_tools": ["lookup_employee_profile", "search_policy_documents", "check_policy_compliance", "create_mock_hr_ticket"],
+      "expected_tools": ["lookup_employee_profile", "search_policy_documents", "get_policy_section", "check_policy_compliance", "create_mock_hr_ticket"],
       "expected_citation_docs": ["POL-RW-001"],
       "gold_keywords": ["request", "remote", "approval"],
       "notes": "confirmed=true path. Tests that create_mock_hr_ticket is called only with explicit confirmation."

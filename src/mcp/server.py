@@ -1,7 +1,7 @@
 """Acme Corp HR tool server.
 
 Exposes all 8 HR tools in two ways:
-  1. As importable Python functions (used by expense_advisor and tests).
+  1. As importable Python functions (used by standalone diagnostics and tests).
   2. As an MCP Streamable HTTP service (used by the agent orchestrator).
      POST /mcp          — MCP initialize, tools/list, tools/call
      Legacy REST routes remain for diagnostics and older smoke tests.
@@ -10,7 +10,7 @@ Exposes all 8 HR tools in two ways:
      GET  /health          — liveness check
 
 Run:
-    python -m src.mcp.server          # starts REST server on port 8001
+    python -m src.mcp.server          # starts MCP and diagnostic REST on port 8001
 """
 
 from __future__ import annotations

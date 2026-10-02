@@ -2,7 +2,17 @@
 
 ## Platform
 
-Oracle Cloud Infrastructure (OCI) — Oracle Linux 9.8, always-on VPS.
+Oracle Cloud Infrastructure (OCI) — Oracle Linux 9.8, always-on VPS. The
+instance metadata reports `VM.Standard.E6.Ax.Flex` with 4 OCPUs and 28 GB
+memory (checked October 1, 2026). This is **not an OCI Always Free shape**:
+Oracle lists `VM.Standard.E2.1.Micro` and eligible `VM.Standard.A1.Flex`
+capacity under its [Always Free compute resources](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm).
+The app is currently running, but account billing, credits, and any special
+pricing arrangement are not visible to this repository. Do not describe this
+deployment as free-tier until the owner verifies the tenancy's billing and
+either confirms an equivalent no-cost arrangement or migrates to an eligible
+shape. A shape migration should be planned separately to avoid interrupting
+the live service or losing its persisted index and ticket data.
 
 ## URLs
 
