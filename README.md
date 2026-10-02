@@ -120,7 +120,7 @@ This takes ~30 seconds on the first run (model load + encoding). Re-running is i
 
 Each employee question follows a grounded, inspectable workflow:
 
-1. **LLM-first routing.** The configured OpenRouter model classifies the question as `pto`, `remote`, `expense`, or general `policy`. It is constrained to return one allowed label. A deterministic router is used only if the model is unavailable or returns an invalid label. Vendor-provided gifts, travel, and other benefits are treated as ethics/policy questions rather than PTO or expenses.
+1. **Routing.** General greetings and capability questions receive a direct help response. Other questions go to the configured OpenRouter model for classification as `pto`, `remote`, `expense`, or general `policy`. It is constrained to return one allowed label. A deterministic router is used if the model is unavailable or returns an invalid label. Vendor-provided gifts, travel, and other benefits are treated as ethics/policy questions rather than PTO or expenses.
 2. **Hybrid policy retrieval.** Every workflow searches with the employee's original question first, then adds narrow workflow anchors. Exact multi-word phrases found in policy section names (for example, `sick leave`) receive a ranking preference over nearby semantic matches.
 3. **Workflow-specific checks.** PTO looks up the employee profile and balance; remote work requires review and only creates a mock ticket after explicit confirmation; expenses retrieve a relevant reimbursement section and assess compliance; general policy questions retrieve the applicable HR or conduct rules.
 4. **Grounded synthesis.** The LLM receives only minimal employee context, retrieved policy excerpts, a compliance assessment, and a deterministic fallback. It must cite policy facts and may not invent approvals, dates, balances, or actions. If the LLM is unavailable, the fallback answer is returned.
@@ -128,7 +128,7 @@ Each employee question follows a grounded, inspectable workflow:
 
 ### Privacy and admin auditability
 
-The employee-facing API exposes cited answers and tool traces, not LLM prompts. Authenticated admins can view a sanitized prompt audit containing the routing model, selected workflow, prompt type, context categories, and whether LLM or fallback routing was used. Raw prompts, policy excerpts, employee values, and credentials are not stored in that audit record.
+The employee-facing API exposes cited answers and tool traces, but not LLM prompts or the audit score. Authenticated admins can view each conversation with its routing decision, near-complete prompts, retrieved policy excerpts, employee context used by the model, and MCP calls. Audit strings are capped at 12,000 characters; API credentials are not recorded. The audit shows a 0–100 answer relevance and evidence score when the LLM review succeeds, including its method and short reason. Direct help responses receive a deterministic intent-match score. If the model is unavailable, the score is shown as unavailable rather than inferred from raw text similarity. Scores are diagnostic signals, not calibrated probabilities of policy correctness.
 
 ---
 

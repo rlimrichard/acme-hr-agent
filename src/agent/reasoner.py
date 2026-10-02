@@ -3,12 +3,82 @@
 from __future__ import annotations
 
 import os
+import json
+import re
 from typing import Any
 
 
 _OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 _DEFAULT_MODEL = "qwen/qwen3.8-27b:free"
 _VALID_WORKFLOWS = {"pto", "remote", "expense", "policy"}
+
+
+def build_confidence_prompt(query: str, answer: str, tool_trace: list[dict[str, Any]]) -> str:
+    """Ask for an audit score based on answer relevance and retrieved evidence."""
+    evidence: list[str] = []
+    for step in tool_trace:
+        if step.get("tool") == "search_policy_documents":
+            for chunk in step.get("result", {}).get("chunks", [])[:5]:
+                evidence.append(
+                    f"[{chunk.get('doc_id', '')} § {chunk.get('section', '')}] "
+                    f"{str(chunk.get('text', ''))[:800]}"
+                )
+    context = "\n".join(evidence) or "No policy excerpts retrieved."
+    return f"""Review this HR assistant answer for the admin audit. Score how well it addresses
+the employee's actual question and whether its policy claims are supported by the
+retrieved excerpts. Do not treat a policy title alone as substantive evidence.
+Return ONLY JSON with score (integer 0-100) and reason (one short sentence).
+This is an audit quality score, not a probability of factual correctness.
+
+QUESTION
+{query}
+
+ANSWER
+{answer[:3_000]}
+
+RETRIEVED POLICY EVIDENCE
+{context}
+"""
+
+
+def assess_answer_confidence(query: str, answer: str, tool_trace: list[dict[str, Any]]) -> dict[str, Any]:
+    """Use the configured provider for an audit-only answer quality review."""
+    model = os.getenv("OPENROUTER_MODEL", _DEFAULT_MODEL)
+    prompt = build_confidence_prompt(query, answer, tool_trace)
+    result: dict[str, Any] = {
+        "score": None,
+        "method": "LLM relevance and evidence review",
+        "model": model,
+        "prompt_preview": prompt,
+        "note": "Audit quality signal, not a calibrated probability of correctness.",
+    }
+    api_key = os.getenv("OPENROUTER_API_KEY", "")
+    if not api_key:
+        return {**result, "status": "provider_unavailable"}
+    try:
+        from openai import OpenAI
+
+        client = OpenAI(api_key=api_key, base_url=_OPENROUTER_BASE_URL, timeout=6, max_retries=0)
+        response = client.chat.completions.create(
+            model=model,
+            max_tokens=120,
+            temperature=0,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = (response.choices[0].message.content or "").strip()
+        match = re.search(r"\{.*\}", raw, re.DOTALL)
+        parsed = json.loads(match.group(0)) if match else {}
+        score = parsed.get("score")
+        if isinstance(score, bool) or not isinstance(score, (int, float)) or not 0 <= score <= 100:
+            return {**result, "status": "invalid_evaluation"}
+        return {
+            **result,
+            "score": round(float(score), 1),
+            "reason": str(parsed.get("reason", ""))[:300],
+            "status": "scored",
+        }
+    except Exception:
+        return {**result, "status": "provider_unavailable"}
 
 
 def build_routing_prompt(query: str) -> str:

@@ -1,8 +1,12 @@
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
 import src.agent.orchestrator as orchestrator
+from src.app import main as app_main
 from src.agent.orchestrator import HRAgent
+from src.agent.reasoner import assess_answer_confidence, build_confidence_prompt
 from src.mcp.server import _prefer_exact_section_matches, app
 
 
@@ -105,6 +109,70 @@ def test_response_as_dict_has_all_required_keys() -> None:
     d = _agent().answer("Can I take a day off?", "EMP-001").as_dict()
     for key in ("answer", "citations", "snippets", "tool_trace", "escalated", "requires_confirmation", "llm_reasoning"):
         assert key in d, f"missing key: {key}"
+
+
+def test_confidence_scores_direct_help_but_does_not_invent_fallback_score() -> None:
+    help_result = {"answer": "I can help with PTO.", "llm_reasoning": {"routing": {"selected_workflow": "help"}}}
+    help_confidence = app_main._answer_confidence("What can you do?", help_result)
+    assert help_confidence["score"] == 100
+    assert help_confidence["method"] == "Deterministic capability intent and response"
+
+    fallback_result = {"answer": "Policy answer", "llm_reasoning": {"routing": {
+        "selected_workflow": "policy", "route_source": "deterministic fallback",
+    }}}
+    fallback_confidence = app_main._answer_confidence("Policy question", fallback_result)
+    assert fallback_confidence["score"] is None
+    assert fallback_confidence["status"] == "not_evaluated"
+
+
+def test_confidence_review_uses_question_answer_and_retrieved_evidence(monkeypatch) -> None:
+    import openai
+
+    trace = [{"tool": "search_policy_documents", "result": {"chunks": [{
+        "doc_id": "POL-RW-001", "section": "Eligibility", "text": "Manager approval is required.",
+    }]}}]
+    prompt = build_confidence_prompt("Can I work abroad?", "Ask your manager first.", trace)
+    assert "Can I work abroad?" in prompt
+    assert "Ask your manager first." in prompt
+    assert "Manager approval is required." in prompt
+
+    class FakeCompletion:
+        def create(self, **kwargs):
+            assert kwargs["messages"][0]["content"] == prompt
+            return type("Reply", (), {"choices": [type("Choice", (), {
+                "message": type("Message", (), {"content": '{"score": 84, "reason": "Relevant and supported."}'})()
+            })()]})()
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.chat = type("Chat", (), {"completions": FakeCompletion()})()
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-only-key")
+    monkeypatch.setattr(openai, "OpenAI", FakeClient)
+    confidence = assess_answer_confidence("Can I work abroad?", "Ask your manager first.", trace)
+    assert confidence["score"] == 84.0
+    assert confidence["status"] == "scored"
+    assert confidence["reason"] == "Relevant and supported."
+
+
+def test_chat_audit_persists_confidence_without_exposing_it(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(app_main, "_LOG_DIR", tmp_path)
+    monkeypatch.setattr(app_main, "_answer_confidence", lambda _query, _result: {
+        "score": 82.5, "method": "test similarity", "note": "not a correctness probability",
+    })
+
+    class FakeAgent:
+        def __init__(self, _client):
+            pass
+
+        def answer(self, _query, _employee_id, _confirmed):
+            return orchestrator.AgentResponse(answer="I can help with PTO.")
+
+    monkeypatch.setattr(app_main, "HRAgent", FakeAgent)
+    public = app_main.chat(app_main.ChatRequest(query="What can you do?", employee_id="EMP-002"))
+    record = json.loads(next(tmp_path.glob("*.jsonl")).read_text(encoding="utf-8"))
+    assert record["confidence"]["score"] == 82.5
+    assert "confidence" not in public
 
 
 @pytest.mark.parametrize("query", [

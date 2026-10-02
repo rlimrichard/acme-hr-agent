@@ -26,6 +26,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pydantic import BaseModel, Field
 
 from src.agent.orchestrator import HRAgent, MCPClient
+from src.agent.reasoner import assess_answer_confidence
 
 _mcp_proc: subprocess.Popen | None = None
 
@@ -125,6 +126,27 @@ def _bounded_audit_value(value: Any, max_string: int = 12_000) -> Any:
     return value
 
 
+def _answer_confidence(query: str, result: dict[str, Any]) -> dict[str, Any]:
+    """Record a score only when its assessment method actually ran."""
+    routing = result.get("llm_reasoning", {}).get("routing", {})
+    if routing.get("selected_workflow") == "help":
+        return {
+            "score": 100,
+            "status": "scored",
+            "method": "Deterministic capability intent and response",
+            "reason": "The question matched the help route and received the defined capability response.",
+            "note": "Intent match only; not a calibrated probability of correctness.",
+        }
+    if routing.get("route_source") != "llm":
+        return {
+            "score": None,
+            "status": "not_evaluated",
+            "method": "LLM relevance and evidence review",
+            "note": "No valid LLM route was recorded, so answer review was skipped.",
+        }
+    return assess_answer_confidence(query, result.get("answer", ""), result.get("tool_trace", []))
+
+
 def _log_chat(employee_id: str, query: str, result: dict[str, Any]) -> None:
     try:
         _LOG_DIR.mkdir(exist_ok=True)
@@ -135,6 +157,7 @@ def _log_chat(employee_id: str, query: str, result: dict[str, Any]) -> None:
             "employee_id": employee_id,
             "query": query,
             "answer": result.get("answer", ""),
+            "confidence": _bounded_audit_value(_answer_confidence(query, result)),
             "escalated": result.get("escalated", False),
             "tool_steps": len(result.get("tool_trace", [])),
             # Admin-only, bounded diagnostic detail. API keys are never part

@@ -68,18 +68,23 @@ jobs:
             # Pull latest code from git clone
             cd /opt/acme-hr-agent/acme-hr-agent
             git pull --ff-only
-            # Sync source files to the service working directory
-            # (excludes: .git, .venv, chroma_db, data — those stay in place)
-            rsync -a \
+            # Sync code while preserving the live environment, policy index,
+            # employee data, chat logs, and generated evaluation results.
+            sudo -n rsync -a --chown=opc:opc \
               --exclude='.git' \
               --exclude='.venv' \
+              --exclude='.venv311' \
+              --exclude='.env' \
+              --exclude='logs' \
               --exclude='chroma_db' \
               --exclude='data' \
+              --exclude='evaluation/results.csv' \
               . /opt/acme-hr-agent/
             # Install/update dependencies after rsync so new packages are
             # available before the service restarts
             cd /opt/acme-hr-agent
-            .venv/bin/python -m pip install -q -r requirements.txt
+            .venv311/bin/python -m pip install -q -r requirements.txt
+            .venv311/bin/python scripts/run_regression_tests.py
             # Restart and wait for the service to be ready (up to 60s)
             sudo systemctl restart acme-hr-agent
             for i in 1 2 3 4 5 6 7 8 9 10 11 12; do

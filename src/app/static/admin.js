@@ -168,6 +168,12 @@ function buildConversationCard(entry) {
     const n = Number(entry.tool_steps);
     header.appendChild(makeBadge('log-card__badge--tools', `${n} tool step${n !== 1 ? 's' : ''}`));
   }
+  const confidence = entry.confidence;
+  if (confidence && Number.isFinite(confidence.score)) {
+    const badge = makeBadge('log-card__badge--tools', `Relevance ${confidence.score}/100`);
+    badge.title = confidence.note || '';
+    header.appendChild(badge);
+  }
   card.appendChild(header);
 
   const queryEl = document.createElement('div');
@@ -210,9 +216,16 @@ function buildConversationCard(entry) {
     const content = document.createElement('div');
     content.className = 'log-card__reasoning-content';
     const answer = reasoning.answer_generation || {};
+    const confidenceLabel = Number.isFinite(confidence?.score)
+      ? `${confidence.score}/100` : 'unavailable';
     content.textContent = `Routing prompt: ${routing.prompt_type || 'not recorded'}\n` +
       `Model: ${routing.model || 'not recorded'}\n` +
       `Route: ${routing.selected_workflow || 'not recorded'} (${routing.route_source || 'not recorded'})\n` +
+      `Answer confidence (relevance): ${confidenceLabel}\n` +
+      `Confidence status: ${confidence?.status || 'not recorded'}\n` +
+      `Confidence method: ${confidence?.method || 'not recorded'}\n` +
+      `Confidence reason: ${confidence?.reason || 'not available'}\n` +
+      `Confidence note: ${confidence?.note || 'This is not a verified correctness probability.'}\n` +
       `Routing instruction: ${routing.instruction || 'not recorded'}\n` +
       `Answer prompt: ${answer.prompt_type || 'not recorded'}\n` +
       `Answer instruction: ${answer.instruction || 'embedded in prompt preview'}\n` +
@@ -220,6 +233,7 @@ function buildConversationCard(entry) {
     details.appendChild(content);
     appendPromptPreview(details, 'Routing prompt preview', routing.prompt_preview);
     appendPromptPreview(details, 'Answer prompt preview', answer.prompt_preview);
+    appendPromptPreview(details, 'Confidence review prompt', confidence?.prompt_preview);
     appendToolAudit(details, entry.tool_trace);
     card.appendChild(details);
   }
