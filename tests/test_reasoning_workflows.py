@@ -371,6 +371,7 @@ def test_remote_work_requires_confirmation_before_ticket() -> None:
     assert "create_mock_hr_ticket" not in tool_names(response)
     assert "Spain" in response.answer
     assert "[POL-RW-001" in response.answer
+    assert "2. Eligibility" in response.answer
     assert "approval" in response.answer.lower()
 
 
@@ -432,7 +433,8 @@ def test_country_based_work_arrangements_use_remote_workflow(monkeypatch, query)
     assert response.escalated is True
     assert response.requires_confirmation is True
     assert response.citations[0]["doc_id"] == "POL-RW-001"
-    assert "remote work" in response.answer.lower() or "remote-work" in response.answer.lower() or "[pol-rw-001]" in response.answer.lower()
+    assert "not automatically covered by your current work arrangement" in response.answer
+    assert "2. Eligibility" in response.answer
     assert "Would you like me to create an HR review request?" in response.answer
     assert "[OFFICIAL POLICY]" not in response.answer
 
@@ -494,8 +496,10 @@ def test_parental_leave_accrual_does_not_invent_a_rule(monkeypatch) -> None:
     "Can you write my quarterly performance self-review for me?",
 ])
 def test_out_of_scope_requests_do_not_claim_policy_evidence(monkeypatch, query) -> None:
-    monkeypatch.setattr(orchestrator, "classify_workflow", lambda _query: "policy")
+    routed = []
+    monkeypatch.setattr(orchestrator, "classify_workflow", lambda question: routed.append(question) or "policy")
     response = _agent().answer(query, "EMP-001")
+    assert routed == [query]  # The LLM is attempted before the scope safeguard.
     assert response.escalated is True
     assert response.citations == []
     assert response.tool_trace == []
@@ -504,6 +508,28 @@ def test_out_of_scope_requests_do_not_claim_policy_evidence(monkeypatch, query) 
         or "not that task" in response.answer.lower()
         or "hr-policy scope" in response.answer.lower()
     )
+
+
+def test_restaurant_expense_is_not_rejected_as_local_recommendation(monkeypatch) -> None:
+    _force_deterministic_routing(monkeypatch)
+    response = _agent().answer("Can I expense a restaurant client dinner?", "EMP-001")
+    assert "search_policy_documents" in tool_names(response)
+
+
+def test_informational_security_does_not_require_human_review(monkeypatch) -> None:
+    _force_deterministic_routing(monkeypatch)
+    response = _agent().answer(
+        "As a remote employee, what data security rules apply to my home office setup?", "EMP-001"
+    )
+    assert response.escalated is False
+
+
+def test_proposed_personal_ai_use_is_flagged_for_review(monkeypatch) -> None:
+    _force_deterministic_routing(monkeypatch)
+    response = _agent().answer(
+        "Can I use personal AI tools for work, and does that affect data security compliance?", "EMP-001"
+    )
+    assert response.escalated is True
 
 
 # ── Expense workflow ───────────────────────────────────────────────────────────
