@@ -33,16 +33,25 @@ function renderTickets(id, tickets, actionable = false) {
 }
 
 async function load() {
-  const [meResponse, ticketsResponse] = await Promise.all([fetch('/portal/me'), fetch('/portal/tickets')]);
-  if (meResponse.status === 401 || ticketsResponse.status === 401) { location.href = '/login'; return; }
-  if (!meResponse.ok || !ticketsResponse.ok) { document.getElementById('identity').textContent = 'Could not load requests.'; return; }
-  const me = await meResponse.json(); const tickets = await ticketsResponse.json();
-  document.getElementById('identity').textContent = `${me.name} (${me.employee_id})`;
-  document.getElementById('hr-section').hidden = !me.is_hr;
-  document.getElementById('manager-section').hidden = !me.is_manager;
-  renderTickets('hr-queue', tickets.hr_queue, true);
-  renderTickets('manager-queue', tickets.manager_queue, true);
-  renderTickets('my-pending', tickets.my_pending);
-  renderTickets('my-closed', tickets.my_closed);
+  const identity = document.getElementById('identity');
+  identity.textContent = 'Loading requests…';
+  try {
+    const [meResponse, ticketsResponse] = await Promise.all([fetch('/portal/me'), fetch('/portal/tickets')]);
+    if (meResponse.status === 401 || ticketsResponse.status === 401) { location.href = '/login'; return; }
+    if (!meResponse.ok || !ticketsResponse.ok) throw new Error('request data unavailable');
+    const me = await meResponse.json(); const tickets = await ticketsResponse.json();
+    identity.textContent = `${me.name} (${me.employee_id})`;
+    document.getElementById('hr-section').hidden = !me.is_hr;
+    document.getElementById('manager-section').hidden = !me.is_manager;
+    renderTickets('hr-queue', tickets.hr_queue, true);
+    renderTickets('manager-queue', tickets.manager_queue, true);
+    renderTickets('my-pending', tickets.my_pending);
+    renderTickets('my-closed', tickets.my_closed);
+  } catch {
+    identity.textContent = 'Could not load requests. Select My Requests again to retry.';
+  }
 }
-load();
+// The same renderer powers the legacy /portal URL and the in-page tab.
+// Keep the home-page tab lazy so opening Chat does not fetch every ticket.
+if (document.getElementById('requests-panel')) window.loadRequests = load;
+else load();

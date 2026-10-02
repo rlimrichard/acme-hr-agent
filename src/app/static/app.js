@@ -44,6 +44,38 @@ const tplUser = document.getElementById('tpl-user-message');
 const tplAgent = document.getElementById('tpl-agent-message');
 const tplThinking = document.getElementById('tpl-thinking');
 
+// ---- In-page Chat / My Requests navigation ----
+const navChat = document.getElementById('nav-chat');
+const navRequests = document.getElementById('nav-requests');
+const requestsPanel = document.getElementById('requests-panel');
+let activeView = 'chat';
+
+function showView(view, updateHistory = false) {
+  if (view === activeView) {
+    if (view === 'requests' && updateHistory) window.loadRequests?.();
+    return;
+  }
+  activeView = view;
+  const showingRequests = view === 'requests';
+  thread.hidden = showingRequests;
+  composerEl.hidden = showingRequests;
+  requestsPanel.hidden = !showingRequests;
+  navChat.classList.toggle('nav-link--active', !showingRequests);
+  navRequests.classList.toggle('nav-link--active', showingRequests);
+  navChat.setAttribute('aria-pressed', String(!showingRequests));
+  navRequests.setAttribute('aria-pressed', String(showingRequests));
+  if (updateHistory) {
+    history.pushState({ view }, '', showingRequests ? '#requests' : location.pathname + location.search);
+  }
+  if (showingRequests) window.loadRequests?.();
+}
+
+navChat.addEventListener('click', () => showView('chat', true));
+navRequests.addEventListener('click', () => showView('requests', true));
+function restoreViewFromUrl() { showView(location.hash === '#requests' ? 'requests' : 'chat'); }
+window.addEventListener('popstate', restoreViewFromUrl);
+window.addEventListener('hashchange', restoreViewFromUrl);
+
 const EMPLOYEE_ID_PATTERN = /^EMP-\d{3}$/;
 
 async function loadEmployeeOptions() {
@@ -264,5 +296,6 @@ async function pollHealth() {
 }
 
 loadEmployeeOptions();
+restoreViewFromUrl();
 pollHealth();
 setInterval(pollHealth, 15000);

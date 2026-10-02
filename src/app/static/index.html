@@ -14,8 +14,8 @@
         <span class="topbar__product">HR Agent</span>
       </div>
       <nav class="topbar__nav" aria-label="Main navigation">
-        <a class="nav-link nav-link--active" href="/" aria-current="page">Chat</a>
-        <a class="nav-link" href="/portal">Requests</a>
+        <button class="nav-link nav-link--active" id="nav-chat" type="button" aria-pressed="true" aria-controls="thread">Chat</button>
+        <button class="nav-link" id="nav-requests" type="button" aria-pressed="false" aria-controls="requests-panel">My Requests</button>
         <a class="nav-link" href="/hr-docs">HR Documents</a>
         <a class="nav-link" href="/admin">Admin</a>
       </nav>
@@ -38,7 +38,7 @@
       </div>
     </header>
 
-    <main class="thread" id="thread" aria-live="polite">
+    <main class="thread view-swap" id="thread" aria-live="polite">
       <div class="thread__intro" id="intro">
         <div class="intro__avatar" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -69,6 +69,14 @@
           </div>
         </div>
       </div>
+    </main>
+
+    <main class="requests-panel portal-shell view-swap" id="requests-panel" hidden>
+      <div class="requests-panel__heading"><h1>My Requests</h1><p id="identity">Loading…</p></div>
+      <section id="hr-section" class="portal-card" hidden><h2>People Operations review queue</h2><div id="hr-queue"></div></section>
+      <section id="manager-section" class="portal-card" hidden><h2>Team PTO approvals</h2><div id="manager-queue"></div></section>
+      <section class="portal-card"><h2>My pending requests</h2><div id="my-pending"></div></section>
+      <section class="portal-card"><h2>My closed requests</h2><div id="my-closed"></div></section>
     </main>
 
     <form class="composer" id="composer">
@@ -133,6 +141,7 @@
     </div>
   </template>
 
+  <script src="/static/portal.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>
