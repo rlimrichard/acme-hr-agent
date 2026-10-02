@@ -18,7 +18,7 @@ Oracle Cloud Infrastructure (OCI) — Oracle Linux 9.8, always-on VPS.
 All components run on one OCI compute instance (`hrapp.elcaro.io`):
 
 - **FastAPI web app** — managed by systemd (`acme-hr-agent.service`), reverse-proxied by nginx on port 443 with TLS via Let's Encrypt
-- **MCP server** — launched as a subprocess on `localhost:8001` by the FastAPI lifespan event
+- **MCP server** — official MCP SDK Streamable HTTP endpoint at `localhost:8001/mcp`, launched as a subprocess by FastAPI lifespan
 - **ChromaDB index** — built once with `python -m src.rag.ingest`, persisted to `chroma_db/` on disk
 - **Employee mock data** — `data/employees.json` committed to repo, read at runtime
 
@@ -28,8 +28,9 @@ All components run on one OCI compute instance (`hrapp.elcaro.io`):
 |---|---|
 | OS | Oracle Linux 9.8 |
 | Python | 3.11 (installed alongside system 3.9) |
-| App directory | `/opt/acme-hr-agent/acme-hr-agent/` |
-| Venv | `.venv/` inside the app directory |
+| Git checkout | `/opt/acme-hr-agent/acme-hr-agent/` |
+| Service working directory | `/opt/acme-hr-agent/` |
+| Python virtual environment | `/opt/acme-hr-agent/.venv311/` |
 | systemd service | `/etc/systemd/system/acme-hr-agent.service` |
 | nginx config | `/etc/nginx/conf.d/hrapp.elcaro.io.conf` |
 | TLS certs | Let's Encrypt via Certbot |
@@ -50,9 +51,9 @@ Every push to `main` that passes CI tests deploys automatically via GitHub Actio
 
 1. GitHub Actions SSHes into the server using the `DEPLOY_SSH_KEY` secret
 2. `git pull --ff-only` in `/opt/acme-hr-agent/acme-hr-agent/`
-3. `rsync` syncs source files to the service working directory (preserving `chroma_db/` and `data/`)
-4. `sudo systemctl restart acme-hr-agent`
-5. Health check confirms the service is up
+3. `rsync` syncs source files to the service working directory, preserving the live `chroma_db/`, `data/`, and logs
+4. `.venv311/bin/python -m pip install -r requirements.txt` and the deterministic regression suite run
+5. `sudo systemctl restart acme-hr-agent`; the health check confirms app and MCP discovery
 
 **Required secret:** Add the OCI SSH private key as `DEPLOY_SSH_KEY` under *GitHub → Settings → Secrets and variables → Actions*.
 
@@ -62,28 +63,15 @@ Every push to `main` that passes CI tests deploys automatically via GitHub Actio
 DEPLOY_SSH_KEY=/path/to/ssh_key ./scripts/deploy.sh
 ```
 
-Or directly on the server:
-```bash
-cd /opt/acme-hr-agent/acme-hr-agent
-git pull --ff-only
-.venv/bin/pip install -q -r requirements.txt
-sudo systemctl restart acme-hr-agent
-```
+The manual script follows the same checkout → sync → dependency install → regression → restart sequence as CI. A `git pull` alone does **not** update the service working directory. If policy files change, rebuild the persisted index explicitly from `/opt/acme-hr-agent` with `.venv311/bin/python -m src.rag.ingest` before restart.
 
 ## Latency (warm)
 
 No cold-start concern — the OCI VPS runs the systemd service continuously; there is no spin-down period.
 
-Latency measured locally by running `evaluation/eval_runner.py` (25 questions, k=5 baseline):
-
-| Metric | Local dev |
-|---|---|
-| p50 | 55 ms |
-| p95 | 2,346 ms |
-
-p50 is low because most questions follow deterministic fast paths (no LLM call). p95 is driven by the expense-advisor workflow which includes a full LLM round-trip via OpenRouter's free tier.
+Older latency figures in the repository predate the current LLM-driven workflows and should not be used as current measurements. The evaluation runner reports fresh warm-request p50/p95 (excluding login) when run against the deployed service. The VPS does not spin down, so there is no hosting cold start, though model-provider latency can vary.
 
 To measure production latency:
 ```bash
-python evaluation/eval_runner.py --endpoint https://hrapp.elcaro.io
+PORTAL_EVAL_PASSWORD=acme123 python evaluation/eval_runner.py --endpoint https://hrapp.elcaro.io
 ```

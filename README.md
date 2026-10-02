@@ -15,7 +15,7 @@ acme-hr-agent/
 │   │   ├── ingest.py        # Policy ingestion: parse → chunk → embed → ChromaDB
 │   │   └── retrieval.py     # RAG retrieval, context formatting, guarded prompt builder
 │   ├── mcp/
-│   │   └── server.py        # MCP server — 8 tools via REST HTTP (port 8001)
+│   │   └── server.py        # MCP Streamable HTTP server — 8 tools (port 8001)
 │   ├── agent/               # Agent orchestrator — PTO / remote-work / expense workflows
 │   └── app/                 # FastAPI web app — POST /chat, GET /health
 ├── scripts/
@@ -45,7 +45,7 @@ acme-hr-agent/
 
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - Git
 
 ---
@@ -90,6 +90,17 @@ MCP_SERVER_URL=http://localhost:8001   # MCP server (default for local dev)
 
 **Never commit `.env`.** It is already in `.gitignore`.
 
+### 5. Provision synthetic employee logins
+
+On a fresh checkout, run once before using `/chat` or the browser UI:
+
+```bash
+PORTAL_INITIAL_PASSWORD=acme123 python -m scripts.provision_portal_users
+```
+
+In PowerShell: `$env:PORTAL_INITIAL_PASSWORD='acme123'; python -m scripts.provision_portal_users`.
+The provisioning script refuses to overwrite an existing account file.
+
 ---
 
 ## Build the RAG Index
@@ -106,9 +117,9 @@ HR Policy RAG Ingestion Pipeline
 Scanning: data/policies
   [POL-AIU-017] ai_acceptable_use_policy.pdf: 1 sections → 31 chunks
   ...
-Total chunks generated: 638
-Embedding 638 chunks …
-Inserted 638 chunks into collection 'hr_policies'.
+Total chunks generated: <count depends on the checked-in corpus>
+Embedding <count> chunks …
+Inserted <count> chunks into collection 'hr_policies'.
 Ingestion complete.
 ```
 
@@ -130,7 +141,7 @@ The chat and Requests page require employee sign-in using an employee ID and pas
 
 When an HR request is created, employees in People Operations see it in their Requests review queue. When a PTO request is created, only that employee's recorded direct manager sees it in the team PTO queue. A reviewer must include a message when approving or denying. The employee sees their own pending requests and then the closed decision and message. These are internal app decisions stored in `data/ticket_reviews.jsonl`; they are not submissions to an external HR or payroll system.
 
-Provision demo accounts once on the server with `PORTAL_INITIAL_PASSWORD=<chosen-password> python -m scripts.provision_portal_users`. The script stores salted password hashes in ignored `data/portal_users.json` and refuses to overwrite existing accounts. In production, replace this demo password mechanism with the organization's identity provider before using real employee data.
+Provision demo accounts once on a fresh checkout with `PORTAL_INITIAL_PASSWORD=acme123 python -m scripts.provision_portal_users`. All five synthetic employees then use password `acme123`; select an employee ID on `/login`. The script stores salted hashes in ignored `data/portal_users.json` and refuses to overwrite existing accounts. This is a shared **demo-only** password, not appropriate for real employee data. For an existing installation, use its already-provisioned password or rotate accounts separately.
 4. **Grounded synthesis.** The LLM receives only minimal employee context, retrieved policy excerpts, a compliance assessment, and a deterministic fallback. It must cite policy facts and may not invent approvals, dates, balances, or actions. If the LLM is unavailable, the fallback answer is returned.
 5. **High-confidence safeguards.** Deterministic policy rules remain for explicit thresholds and critical distinctions, including the unified PTO bank for vacation and sick leave, vendor gifts over $75, vendor-paid travel, and travel meal per-diem limits.
 
@@ -142,7 +153,7 @@ The employee-facing API exposes cited answers and tool traces, but not LLM promp
 
 ## Run the MCP Server
 
-The MCP server exposes all 8 HR tools over REST HTTP on port 8001:
+The MCP server exposes all 8 HR tools through the official MCP SDK over Streamable HTTP at `http://127.0.0.1:8001/mcp`. It also retains diagnostic REST routes (`GET /tools`, `POST /tools/{name}`) for simple smoke checks; the agent does not use those REST routes.
 
 ```bash
 python -m src.mcp.server
@@ -159,9 +170,10 @@ INFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
 **Option 1 — Automated smoke tests (no server required):**
 ```bash
 python scripts/test_mcp.py
+pytest tests/test_mcp_protocol.py -q
 ```
 
-**curl (REST):**
+**Diagnostic curl (legacy REST, not the agent transport):**
 ```bash
 # List all tools
 curl http://localhost:8001/tools
@@ -218,38 +230,42 @@ curl http://localhost:8080/health
 
 Expected response:
 ```json
-{ "status": "ok", "mcp_connected": true, "chroma_loaded": true, "doc_count": 638 }
+{ "status": "ok", "mcp_connected": true, "chroma_loaded": true, "doc_count": 642, "tool_count": 8, "version": "0.1.0" }
 ```
 
 ---
 
 ## Demo Tasks
 
-Two reproducible agentic workflows for grading. Run them via the chat UI or the curl commands below once the web app is deployed.
+Two reproducible agentic workflows for grading. Sign in at `/login` as the indicated synthetic employee using demo password `acme123`, or use the authenticated curl examples below. On a fresh checkout, run the account-provisioning command above first. The response includes citations, snippets, and a tool-call trace.
 
 ### Demo 1 — PTO Request Guidance
 
-**Query:** "I'm EMP-002. Can I take 5 days off starting next Monday and submit a request?"
+**Query:** "I want to submit a PTO request for November 2."
 
 ```bash
-curl -X POST http://localhost:8080/chat \
+curl -c /tmp/acme-emp002.cookies -X POST http://localhost:8080/login \
+  -d 'employee_id=EMP-002&password=acme123'
+curl -b /tmp/acme-emp002.cookies -X POST http://localhost:8080/chat \
   -H "Content-Type: application/json" \
-  -d '{"query": "Can I take 5 days off starting next Monday and submit a request?", "employee_id": "EMP-002"}'
+  -d '{"query": "I want to submit a PTO request for November 2.", "employee_id": "EMP-002"}'
 ```
 
 **Expected tool sequence:**
 1. `lookup_employee_profile` (EMP-002)
 2. `check_pto_balance` (EMP-002)
-3. `search_policy_documents` ("PTO request approval process")
-4. `check_policy_compliance` (action: take 5 days PTO)
-5. `create_mock_hr_ticket` (after user confirmation)
+3. `search_policy_documents` (PTO policy evidence)
+4. `check_policy_compliance` (action: the stated PTO request)
+5. After the app asks for confirmation, repeat the same authenticated `/chat` call with `"confirmed": true`; only then does `create_mock_hr_ticket` create a manager-review request. This creates a real *demo-app* ticket, so skip the confirmation step when merely inspecting the workflow.
 
 ### Demo 2 — Expense Compliance Check
 
 **Query:** "I'm EMP-001 (fully remote). Can I expense a $1,200 standing desk?"
 
 ```bash
-curl -X POST http://localhost:8080/chat \
+curl -c /tmp/acme-emp001.cookies -X POST http://localhost:8080/login \
+  -d 'employee_id=EMP-001&password=acme123'
+curl -b /tmp/acme-emp001.cookies -X POST http://localhost:8080/chat \
   -H "Content-Type: application/json" \
   -d '{"query": "Can I expense a $1200 standing desk for my home office?", "employee_id": "EMP-001"}'
 ```
@@ -271,8 +287,9 @@ GitHub Actions runs on every push and pull request to `main`. Passing tests on `
 3. Build ChromaDB index (`python -m src.rag.ingest`)
 4. RAG diagnostic tests (`python scripts/test_rag.py`)
 5. MCP tool smoke tests (`python scripts/test_mcp.py`)
-6. Run orchestrator unit tests (`pytest tests/ -v`)
-7. *(on pass)* SSH into `hrapp.elcaro.io` → `git pull` → rsync → `systemctl restart`
+6. Run unit and protocol tests (`pytest tests/ -v`)
+7. Start the real ASGI app and verify `/health` and MCP discovery (`python scripts/test_app_start.py`)
+8. *(on pass)* SSH into `hrapp.elcaro.io` → `git pull` → rsync → install dependencies → regression tests → `systemctl restart` → health check
 
 **Pull requests** run steps 1–6 only — they never deploy.
 
@@ -293,7 +310,7 @@ The app is deployed on Oracle Cloud Infrastructure (`hrapp.elcaro.io`), managed 
 DEPLOY_SSH_KEY=/path/to/key ./scripts/deploy.sh
 ```
 
-The MCP server is launched as a subprocess by the FastAPI startup event on `localhost:8001`. Secrets are stored in `/etc/sysconfig/acme-hr-agent` on the server — never in code or committed files.
+The MCP server is launched as a subprocess by FastAPI startup on `localhost:8001`. The agent uses the official MCP SDK over Streamable HTTP at `/mcp`, including `tools/list` and `tools/call`. The old REST `/tools` endpoints remain for diagnostics only. Secrets are stored in `/etc/sysconfig/acme-hr-agent` on the server — never in code or committed files. Deploying a code change does not overwrite the persisted policy index; rebuild it explicitly after changing policy documents.
 
 See [deployed.md](deployed.md) for full server setup details.
 
@@ -301,14 +318,14 @@ See [deployed.md](deployed.md) for full server setup details.
 
 ## Evaluation
 
-Run the full 25-question evaluation suite:
+Run the full 25-question evaluation suite. The runner logs in for each synthetic employee with the password from `PORTAL_EVAL_PASSWORD`. By default it forces `confirmed=false` so it never creates test tickets on the live service. Use `--allow-write-actions` only against disposable data.
 
 ```bash
 # Local
-python evaluation/eval_runner.py --endpoint http://localhost:8080
+PORTAL_EVAL_PASSWORD=acme123 python evaluation/eval_runner.py --endpoint http://localhost:8080
 
 # Live deployment
-python evaluation/eval_runner.py --endpoint https://hrapp.elcaro.io
+PORTAL_EVAL_PASSWORD=acme123 python evaluation/eval_runner.py --endpoint https://hrapp.elcaro.io
 ```
 
 Results are written to `evaluation/results.csv`. The runner exits with code 1 if overall pass rate < 70%.
@@ -323,14 +340,14 @@ Results are written to `evaluation/results.csv`. The runner exits with code 1 if
 | Ambiguous requests | 3 |
 | Out-of-scope requests | 2 |
 
-**Metrics scored per question:** escalation accuracy, tool recall, citation recall, keyword match, action safety (write actions only when `confirmed=True`). Latency p50/p95 reported in aggregate.
+**Metrics scored per question:** escalation/clarification accuracy, tool recall and selection F1, citation recall and evidence-backed citation accuracy, keyword match against annotated gold answers, workflow completion, and action safety. A lexical evidence-overlap score is reported as a **groundedness proxy**, not a semantic correctness judgment. Latency p50/p95 is measured across the 25 chat requests (authentication excluded).
 
-**Ablation (top-k sweep):**
+**Ablation (top-k sweep):** Each request now applies `top_k` to the policy-search tool, rather than merely labeling the CSV. Use separate output paths:
 
 ```bash
-python evaluation/eval_runner.py --top-k 3
-python evaluation/eval_runner.py --top-k 5   # baseline
-python evaluation/eval_runner.py --top-k 8
+PORTAL_EVAL_PASSWORD=acme123 python evaluation/eval_runner.py --endpoint http://localhost:8080 --top-k 3 --out evaluation/results-k3.csv
+PORTAL_EVAL_PASSWORD=acme123 python evaluation/eval_runner.py --endpoint http://localhost:8080 --top-k 5 --out evaluation/results-k5.csv
+PORTAL_EVAL_PASSWORD=acme123 python evaluation/eval_runner.py --endpoint http://localhost:8080 --top-k 8 --out evaluation/results-k8.csv
 ```
 
 Full evaluation design and results are in [`design-and-evaluation.md`](design-and-evaluation.md).

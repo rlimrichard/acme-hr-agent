@@ -51,6 +51,9 @@ jobs:
       - name: Run orchestrator unit tests
         run: pytest tests/ -v
 
+      - name: Verify app startup and MCP discovery
+        run: python scripts/test_app_start.py
+
   deploy:
     needs: test
     runs-on: ubuntu-latest

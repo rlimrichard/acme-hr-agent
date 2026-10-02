@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import asyncio
+import json
 import re
 from calendar import month_abbr, month_name
 from dataclasses import dataclass, field
@@ -10,6 +12,7 @@ from datetime import date
 from typing import Any
 
 import httpx
+from mcp.client import Client
 
 from src.agent.reasoner import (
     build_routing_prompt,
@@ -39,19 +42,36 @@ class MCPClient:
         self.base_url = (base_url or os.getenv("MCP_SERVER_URL", "http://127.0.0.1:8001")).rstrip("/")
 
     def discover_tools(self) -> list[dict[str, Any]]:
-        return httpx.get(f"{self.base_url}/tools", timeout=10).raise_for_status().json()["tools"]
+        async def discover() -> list[dict[str, Any]]:
+            async with Client(f"{self.base_url}/mcp/") as client:
+                result = await client.list_tools()
+                return [tool.model_dump(by_alias=True, exclude_none=True) for tool in result.tools]
+        return asyncio.run(discover())
 
     def call(self, tool: str, args: dict[str, Any]) -> dict[str, Any]:
-        response = httpx.post(f"{self.base_url}/tools/{tool}", json=args, timeout=20)
-        response.raise_for_status()
-        return response.json()
+        async def invoke() -> dict[str, Any]:
+            async with Client(f"{self.base_url}/mcp/") as client:
+                result = await client.call_tool(tool, args)
+                if result.is_error:
+                    raise RuntimeError(f"MCP tool {tool} failed: {result.content}")
+                if result.structured_content is not None:
+                    return result.structured_content
+                for block in result.content:
+                    if getattr(block, "type", None) == "text":
+                        return json.loads(block.text)
+                raise RuntimeError(f"MCP tool {tool} returned no structured result")
+        try:
+            return asyncio.run(invoke())
+        except Exception as exc:
+            raise RuntimeError(f"MCP call failed for {tool}") from exc
 
 
 class HRAgent:
     """Routes specialist requests and grounds every other policy question in RAG."""
 
-    def __init__(self, client: MCPClient | None = None) -> None:
+    def __init__(self, client: MCPClient | None = None, top_k: int = 5) -> None:
         self.client = client or MCPClient()
+        self.top_k = top_k
 
     def _invoke(self, response: AgentResponse, tool: str, **args: Any) -> dict[str, Any]:
         result = self.client.call(tool, args)
@@ -269,7 +289,7 @@ class HRAgent:
                 f"{query}\nPolicy focus: PTO approval, blackout periods, leave accrual, "
                 "vacation, personal time, and sick leave."
             ),
-            top_k=5,
+            top_k=self.top_k,
         )
         compliance = self._invoke(response, "check_policy_compliance", employee_id=employee_id, action=query, context="PTO and leave request")
         self._sources(response, policies["chunks"])
@@ -353,7 +373,7 @@ class HRAgent:
                 f"{query}\nPolicy focus: remote-work eligibility, work location, international "
                 "arrangements, tax, data security, and approval requirements."
             ),
-            top_k=5,
+            top_k=self.top_k,
         )
         compliance = self._invoke(response, "check_policy_compliance", employee_id=employee_id, action=query,
                                   context=f"remote status: {profile.get('remote_status', 'unknown')}")
@@ -397,7 +417,7 @@ class HRAgent:
 
     def _expense(self, query: str, employee_id: str) -> AgentResponse:
         from src.agent.expense_advisor import run as _expense_run
-        result = _expense_run(employee_id, query)
+        result = _expense_run(employee_id, query, tool_caller=self.client.call, top_k=self.top_k)
 
         # Normalise tool_trace to orchestrator format (input/output → args/result)
         tool_trace = [
@@ -438,7 +458,7 @@ class HRAgent:
             response,
             "search_policy_documents",
             query=f"{query}\nPolicy focus: applicable Acme Corp HR policy and employee conduct rules.",
-            top_k=5,
+            top_k=self.top_k,
         )
         compliance = self._invoke(
             response,

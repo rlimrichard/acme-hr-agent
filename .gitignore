@@ -31,5 +31,8 @@ data/tickets.jsonl
 data/ticket_reviews.jsonl
 data/portal_users.json
 
+# Generated evaluation comparisons (the checked-in results.csv is historical)
+evaluation/results-k*.csv
+
 # Claude
 .claude/

@@ -30,7 +30,7 @@
       "confirmed": false,
       "expected_workflow": "pto",
       "expected_escalated": false,
-      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance", "draft_hr_email"],
+      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance"],
       "expected_citation_docs": ["POL-PTO-002"],
       "gold_keywords": ["22.0", "balance", "approval"],
       "notes": "EMP-004 has 22 days; 1-day request is well within balance."
@@ -108,7 +108,7 @@
       "confirmed": false,
       "expected_workflow": "pto",
       "expected_escalated": false,
-      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance", "draft_hr_email"],
+      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance"],
       "expected_citation_docs": ["POL-PTO-002"],
       "gold_keywords": ["balance", "accrual", "days"],
       "notes": "Informational PTO question. Tests that balance and policy info are both returned."
@@ -160,7 +160,7 @@
       "confirmed": false,
       "expected_workflow": "pto",
       "expected_escalated": false,
-      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance", "draft_hr_email"],
+      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance"],
       "expected_citation_docs": ["POL-PTO-002", "POL-LOA-008"],
       "gold_keywords": ["leave", "accrual", "balance"],
       "notes": "Requires both PTO policy and leave of absence policy."
@@ -171,12 +171,12 @@
       "query": "Can I use personal AI tools for work, and does that affect data security compliance?",
       "employee_id": "EMP-001",
       "confirmed": false,
-      "expected_workflow": null,
+      "expected_workflow": "policy",
       "expected_escalated": true,
-      "expected_tools": [],
-      "expected_citation_docs": [],
-      "gold_keywords": [],
-      "notes": "Out of orchestrator scope — no route keyword. Tests honest escalation on AI/security question."
+      "expected_tools": ["lookup_employee_profile", "search_policy_documents", "check_policy_compliance"],
+      "expected_citation_docs": ["POL-AIU-017", "POL-SEC-004"],
+      "gold_keywords": ["AI", "data", "security"],
+      "notes": "Tests general-policy retrieval across AI acceptable use and data security; do not treat it as out of scope."
     },
     {
       "id": "Q014",
@@ -186,7 +186,7 @@
       "confirmed": false,
       "expected_workflow": "pto",
       "expected_escalated": false,
-      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance", "draft_hr_email"],
+      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance"],
       "expected_citation_docs": ["POL-PTO-002"],
       "gold_keywords": ["14.5", "5", "balance", "approval"],
       "notes": "EMP-001 has 14.5 days; requesting 5 is within balance. Full PTO workflow."
@@ -251,7 +251,7 @@
       "confirmed": false,
       "expected_workflow": "pto",
       "expected_escalated": false,
-      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance", "draft_hr_email"],
+      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance"],
       "expected_citation_docs": ["POL-PTO-002"],
       "gold_keywords": ["22.0", "balance"],
       "notes": "EMP-004 has 22 days. Tests balance reporting in PTO workflow."
@@ -277,7 +277,7 @@
       "confirmed": false,
       "expected_workflow": "pto",
       "expected_escalated": false,
-      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance", "draft_hr_email"],
+      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance"],
       "expected_citation_docs": ["POL-PTO-002"],
       "gold_keywords": ["balance", "leave", "approval"],
       "notes": "'leave' triggers PTO workflow even without specifics. Tests graceful handling of vague request."

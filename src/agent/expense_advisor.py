@@ -194,7 +194,7 @@ def _call(step: int, tool_name: str, fn, **kwargs) -> tuple[Any, dict]:
 
 # ── Main workflow ─────────────────────────────────────────────────────────────
 
-def run(employee_id: str, query: str) -> dict[str, Any]:
+def run(employee_id: str, query: str, tool_caller=None, top_k: int = 5) -> dict[str, Any]:
     """
     Run the Expense Reimbursement Advisor workflow.
 
@@ -211,7 +211,10 @@ def run(employee_id: str, query: str) -> dict[str, Any]:
     def tool(name, fn, **kwargs):
         nonlocal step
         step += 1
-        result, entry = _call(step, name, fn, **kwargs)
+        if tool_caller is not None:
+            result, entry = _call(step, name, lambda **arguments: tool_caller(name, arguments), **kwargs)
+        else:
+            result, entry = _call(step, name, fn, **kwargs)
         trace.append(entry)
         return result
 
@@ -238,7 +241,7 @@ def run(employee_id: str, query: str) -> dict[str, Any]:
         + (f" Requested amount: {amount}." if amount else "")
     )
     policy_result = tool("search_policy_documents", search_policy_documents,
-                         query=enriched, top_k=5)
+                         query=enriched, top_k=top_k)
     chunks = policy_result.get("chunks", [])
 
     # ── Step 3 ────────────────────────────────────────────────────────────────

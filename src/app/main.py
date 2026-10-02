@@ -1,4 +1,4 @@
-"""FastAPI entry point for the three-workflow Acme HR agent."""
+"""FastAPI entry point for the Acme HR policy and workflow agent."""
 
 from __future__ import annotations
 
@@ -258,6 +258,7 @@ class ChatRequest(BaseModel):
     query: str = Field(min_length=3)
     employee_id: str = Field(pattern=r"^EMP-\d{3}$")
     confirmed: bool = False
+    top_k: int = Field(default=5, ge=1, le=20)
 
 
 class ReviewRequest(BaseModel):
@@ -364,7 +365,7 @@ def portal_page(request: Request) -> Response:
 def health() -> dict[str, Any]:
     base_url = os.getenv("MCP_SERVER_URL", "http://127.0.0.1:8001").rstrip("/")
     try:
-        tool_count = len(httpx.get(f"{base_url}/tools", timeout=2).json().get("tools", []))
+        tool_count = len(MCPClient(base_url).discover_tools())
         connected = tool_count >= 5
     except Exception:
         tool_count, connected = 0, False
@@ -385,13 +386,15 @@ def chat(request: ChatRequest, http_request: Request, person: dict[str, Any] = D
     if request.employee_id != person["employee_id"]:
         raise HTTPException(status_code=403, detail="Employee ID does not match signed-in account")
     try:
-        result = HRAgent(MCPClient()).answer(request.query, request.employee_id, request.confirmed).as_dict()
+        agent = HRAgent(MCPClient())
+        agent.top_k = request.top_k
+        result = agent.answer(request.query, request.employee_id, request.confirmed).as_dict()
         _log_chat(request.employee_id, request.query, result, request.confirmed)
         # The sanitized audit data is written only to the authenticated admin
         # log; employee-facing API clients must not receive it.
         result.pop("llm_reasoning", None)
         return result
-    except httpx.HTTPError as exc:
+    except (httpx.HTTPError, RuntimeError, OSError) as exc:
         raise HTTPException(status_code=503, detail="The HR tool server is unavailable. Please try again shortly.") from exc
 
 
