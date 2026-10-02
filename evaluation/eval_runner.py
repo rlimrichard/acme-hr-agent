@@ -5,7 +5,7 @@ Usage:
     python evaluation/eval_runner.py
     python evaluation/eval_runner.py --endpoint https://hrapp.elcaro.io
     PORTAL_EVAL_PASSWORD=acme123 python evaluation/eval_runner.py --top-k 3
-    python evaluation/eval_runner.py --questions evaluation/questions.json --out evaluation/results.csv
+    python evaluation/eval_runner.py --questions evaluation/questions.json --out evaluation/results-latest.csv
 
 Metrics include escalation/clarification, tool recall and selection F1,
 evidence-backed citation accuracy, keyword match, workflow completion,
@@ -44,8 +44,8 @@ def _parse_args() -> argparse.Namespace:
                    help="Base URL of the FastAPI app (default: http://127.0.0.1:8080)")
     p.add_argument("--questions", default="evaluation/questions.json",
                    help="Path to questions.json (default: evaluation/questions.json)")
-    p.add_argument("--out", default="evaluation/results.csv",
-                   help="Path for output CSV (default: evaluation/results.csv)")
+    p.add_argument("--out", default="evaluation/results-latest.csv",
+                   help="Path for output CSV (default: evaluation/results-latest.csv, ignored by Git)")
     p.add_argument("--top-k", type=int, choices=range(1, 21), default=5,
                    metavar="1..20", help="Actual policy-search retrieval top-k (default: 5)")
     p.add_argument("--password-env", default="PORTAL_EVAL_PASSWORD",

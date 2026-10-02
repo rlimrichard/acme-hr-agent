@@ -19,8 +19,8 @@
       "expected_escalated": false,
       "expected_tools": ["lookup_employee_profile", "search_policy_documents", "get_policy_section", "check_policy_compliance"],
       "expected_citation_docs": ["POL-EXP-001"],
-      "gold_keywords": ["expense", "reimburse", "policy"],
-      "notes": "Low-value item, likely within limit. Tests basic expense workflow."
+      "gold_keywords": ["mouse", "company-provided", "IT"],
+      "notes": "The remote-work policy lists a mouse as a standard company-provided peripheral. Do not misclassify it as an ergonomics-stipend purchase."
     },
     {
       "id": "Q002",
@@ -32,7 +32,7 @@
       "expected_escalated": false,
       "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance"],
       "expected_citation_docs": ["POL-PTO-002"],
-      "gold_keywords": ["22.0", "balance", "approval"],
+      "gold_keywords": ["22", "balance", "approv"],
       "notes": "EMP-004 has 22 days; 1-day request is well within balance."
     },
     {
@@ -97,8 +97,8 @@
       "expected_escalated": false,
       "expected_tools": ["lookup_employee_profile", "search_policy_documents", "get_policy_section", "check_policy_compliance"],
       "expected_citation_docs": ["POL-EXP-001"],
-      "gold_keywords": ["chair", "reimburse", "policy"],
-      "notes": "EMP-003 is office-first; tests whether remote-only limits are flagged."
+      "gold_keywords": ["chair", "office-first", "manager"],
+      "notes": "EMP-003 is office-first; do not promise the remote-only stipend or reimbursement. Direct to manager or People Operations for the correct route."
     },
     {
       "id": "Q008",

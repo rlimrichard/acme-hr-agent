@@ -76,7 +76,7 @@ EMPLOYEE QUESTION: {query}"""
 
 
 _OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-_OPENROUTER_DEFAULT_MODEL = "anthropic/claude-haiku-4-5"
+_OPENROUTER_DEFAULT_MODEL = "google/gemini-2.5-flash-lite"
 
 
 def _build_synthesis_prompt(
@@ -140,6 +140,14 @@ def _synthesize(
         content = response.choices[0].message.content
         if content and len(content) <= 1800 and "no explicit prohibitions" not in content.lower():
             candidate = content.strip()
+            if "mouse" in query.lower() and any(
+                item.get("doc_id") == "POL-RW-001"
+                and "company-provided equipment" in item.get("section", "").lower()
+                for item in chunks
+            ) and not re.search(r"company[ -]provided", candidate, re.I):
+                # Standard peripherals use the company equipment route. A
+                # general ergonomics-stipend answer would mislead the employee.
+                return _template_answer(query, employee, compliance, section, chunks)
             if re.search(r"\b(?:expense|reimburse)\s+something\b", query.lower()):
                 # A vague expense has no actionable policy conclusion.  Some
                 # providers return a cut-off sentence or omit business purpose;

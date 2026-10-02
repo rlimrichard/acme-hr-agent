@@ -335,7 +335,7 @@ PORTAL_EVAL_PASSWORD=acme123 python evaluation/eval_runner.py --endpoint http://
 PORTAL_EVAL_PASSWORD=acme123 python evaluation/eval_runner.py --endpoint https://hrapp.elcaro.io
 ```
 
-Results are written to `evaluation/results.csv`. The runner exits with code 1 if overall pass rate < 70%.
+Results are written to ignored `evaluation/results-latest.csv` by default, so a run does not dirty the tracked historical CSV or block a server `git pull`. Use `--out` to publish a named result. The runner exits with code 1 if overall pass rate < 70%.
 
 **Question set (25 total):**
 

@@ -9,7 +9,7 @@ from typing import Any
 
 
 _OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-_DEFAULT_MODEL = "qwen/qwen3.8-27b:free"
+_DEFAULT_MODEL = "google/gemini-2.5-flash-lite"
 _REASONING_TIMEOUT_S = 12
 _VALID_WORKFLOWS = {"pto", "remote", "expense", "policy", "out_of_scope"}
 
@@ -175,6 +175,8 @@ Rules:
 6. Answer every part of the employee's question; do not replace it with an
    unrelated remote-work, PTO-balance, or reimbursement summary.
 7. Keep the answer concise and useful.
+8. For a question about the employee's own PTO, mention their current PTO
+   balance from the employee context when it is available.
 
 EMPLOYEE CONTEXT
 {employee_context}

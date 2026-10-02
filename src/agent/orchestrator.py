@@ -309,7 +309,7 @@ class HRAgent:
         response.llm_reasoning = {
             "routing": {
                 "prompt_type": "workflow-classification-v1",
-                "model": os.getenv("OPENROUTER_MODEL", "qwen/qwen3.8-27b:free"),
+                "model": os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash-lite"),
                 "selected_workflow": kind,
                 "route_source": route_source,
                 "prompt_fields": ["employee question"],
@@ -450,6 +450,12 @@ class HRAgent:
         if parental_accrual and not all(word in response.answer.lower() for word in ("parental", "accru", "leave")):
             response.answer = deterministic_answer + email_block
         if "accru" in lowered and "year" in lowered and "accru" not in response.answer.lower():
+            response.answer = deterministic_answer + email_block
+        if (profile.get("found", False) and not parental_accrual
+                and str(balance.get("pto_balance_days", "")) not in response.answer
+                and any(word in lowered for word in ("vacation", "time off", "pto", "sick leave"))):
+            # The employee's actual balance is material to a personal PTO
+            # answer; a generic policy summary is not sufficient.
             response.answer = deterministic_answer + email_block
         if parental_accrual:
             response.escalated = True

@@ -49,9 +49,16 @@ All components run on one OCI compute instance (`hrapp.elcaro.io`):
 
 | Variable | Description |
 |---|---|
-| `OPENROUTER_API_KEY` | LLM provider key — stored in `/etc/sysconfig/acme-hr-agent`, never committed |
-| `OPENROUTER_MODEL` | `qwen/qwen3.8-27b:free` |
+| `OPENROUTER_API_KEY` | LLM provider key — stored in `/opt/acme-hr-agent/.env`, never committed |
+| `OPENROUTER_MODEL` | `google/gemini-2.5-flash-lite` (low-cost paid model; usage charges apply) |
 | `MCP_SERVER_URL` | `http://127.0.0.1:8001` |
+
+The app loads `/opt/acme-hr-agent/.env`; `/etc/sysconfig/acme-hr-agent` is not
+an active systemd environment file for this service. Keep the actual runtime
+file and the checkout's excluded `.env` in sync when changing model settings.
+The previous free model was rate-limited upstream and silently triggered the
+app's deterministic fallback. Verify LLM use via admin audit routing source and
+confidence status, not merely a passing response test.
 
 ## Deploying updates
 

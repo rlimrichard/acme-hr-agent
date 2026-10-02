@@ -68,7 +68,7 @@ Claude Code generated the initial MCP server using `FastMCP` from the `mcp` Pyth
 
 ### LLM Provider (OpenRouter)
 
-The project was initially configured to use the Anthropic API directly (`anthropic.Anthropic()`). This was replaced with OpenRouter using the `openai` SDK with `base_url="https://openrouter.ai/api/v1"` and model `qwen/qwen3.8-27b:free`. The switch required: (1) adding `OPENROUTER_API_KEY` to `.env`; (2) changing the client instantiation from `anthropic.Anthropic()` to `openai.OpenAI(base_url=..., api_key=...)`. No changes to prompt templates or response parsing were needed.
+The project was initially configured to use the Anthropic API directly (`anthropic.Anthropic()`). This was replaced with OpenRouter using the `openai` SDK with `base_url="https://openrouter.ai/api/v1"`. The switch required: (1) adding `OPENROUTER_API_KEY` to `.env`; (2) changing the client instantiation from `anthropic.Anthropic()` to `openai.OpenAI(base_url=..., api_key=...)`. The initial free-model configuration became unreliable due to model availability and upstream rate limits; the deployed setting was changed to the low-cost paid `google/gemini-2.5-flash-lite` after owner approval. Provider failures still trigger an evidence-bounded fallback, and the admin audit records whether the LLM route and quality review actually ran.
 
 ---
 

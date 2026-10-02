@@ -552,6 +552,39 @@ def test_ergonomic_mouse_uses_company_equipment_rule_not_desk_stipend(monkeypatc
     assert "standing desk" not in response.answer.lower()
 
 
+def test_expense_llm_cannot_misroute_company_mouse_to_ergonomics_stipend(monkeypatch) -> None:
+    import openai
+
+    class FakeCompletion:
+        def create(self, **kwargs):
+            return type("Reply", (), {"choices": [type("Choice", (), {
+                "message": type("Message", (), {
+                    "content": "Use the $500 ergonomics stipend for your mouse [POL-RW-001 § 5.2 Ergonomics]."
+                })()
+            })()]})()
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.chat = type("Chat", (), {"completions": FakeCompletion()})()
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-only-key")
+    monkeypatch.setattr(openai, "OpenAI", FakeClient)
+    chunks = [{"doc_id": "POL-RW-001", "section": "4.1 Company-Provided Equipment",
+               "text": "Standard peripherals: keyboard, mouse, headset."}]
+    answer = expense_advisor._synthesize("Can I expense a $150 ergonomic mouse?", {}, chunks, {}, {})
+    assert "company-provided" in answer.lower()
+    assert "stipend" not in answer.lower()
+
+
+def test_personal_vacation_answer_keeps_employee_balance(monkeypatch) -> None:
+    _force_deterministic_routing(monkeypatch)
+    monkeypatch.setattr(orchestrator, "synthesize_policy_answer", lambda **kwargs:
+                        "Ask your manager to approve vacation [POL-PTO-002 § 3.2 Approval Process].")
+    response = _agent().answer("Can I take a day of vacation on Friday?", "EMP-004")
+    assert "22.0" in response.answer
+    assert "balance" in response.answer.lower()
+
+
 def test_expense_answer_is_non_empty() -> None:
     response = _agent().answer("Can I expense a $300 webcam for my home office?", "EMP-001")
     assert len(response.answer) > 20  # LLM answer or template fallback — both are non-trivial
