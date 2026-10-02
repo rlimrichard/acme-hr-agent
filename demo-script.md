@@ -2,6 +2,8 @@
 
 This is a recording guide for the synthetic HR-agent demo at <https://hrapp.elcaro.io>. It shows two complete tasks, the policy evidence behind each answer, and the human-review step. The presenter should use the *deployed* app, not a local server, and describe only results visible in the recording. Budget about nine minutes; leave a minute for page loads.
 
+Suggested speaking split for the three listed contributors: Richard opens with the architecture (0:00–0:50), Moe narrates both live tasks (0:50–6:20), and Diva presents evaluation, deployment, and limitations (6:20–9:00). Every member should speak and appear on camera as the course requires; adjust the names and handoffs if the actual presenting group differs.
+
 ## Before recording
 
 - Confirm <https://hrapp.elcaro.io/health> reports `status: ok`, `mcp_connected: true`, `chroma_loaded: true`, and eight tools. Confirm the latest GitHub Actions run for `main` succeeded and the deployed commit matches it.

@@ -138,7 +138,16 @@ def _synthesize(
         )
         content = response.choices[0].message.content
         if content and len(content) <= 1800 and "no explicit prohibitions" not in content.lower():
-            return content.strip()
+            candidate = content.strip()
+            if re.search(r"\b(?:expense|reimburse)\s+something\b", query.lower()):
+                # A vague expense has no actionable policy conclusion.  Some
+                # providers return a cut-off sentence or omit business purpose;
+                # still record the LLM call, but show the complete clarifier.
+                if ("amount" not in candidate.lower()
+                        or "business purpose" not in candidate.lower()
+                        or not candidate.endswith((".", "?"))):
+                    return _template_answer(query, employee, compliance, section, chunks)
+            return candidate
         return _template_answer(query, employee, compliance, section, chunks)
     except Exception:
         return _template_answer(query, employee, compliance, section, chunks)

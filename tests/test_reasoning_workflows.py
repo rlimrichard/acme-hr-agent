@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import src.agent.orchestrator as orchestrator
+import src.agent.expense_advisor as expense_advisor
 from src.app import main as app_main
 from src.agent.orchestrator import HRAgent
 from src.agent.reasoner import assess_answer_confidence, build_confidence_prompt
@@ -497,6 +498,33 @@ def test_ergonomic_mouse_uses_company_equipment_rule_not_desk_stipend(monkeypatc
 def test_expense_answer_is_non_empty() -> None:
     response = _agent().answer("Can I expense a $300 webcam for my home office?", "EMP-001")
     assert len(response.answer) > 20  # LLM answer or template fallback — both are non-trivial
+
+
+def test_vague_expense_uses_complete_clarifier_after_incomplete_llm_reply(monkeypatch) -> None:
+    import openai
+
+    calls = []
+
+    class FakeCompletion:
+        def create(self, **kwargs):
+            calls.append(kwargs)
+            return type("Reply", (), {"choices": [type("Choice", (), {
+                "message": type("Message", (), {
+                    "content": "Please provide the item and dollar amount. Remote supplies may be governed"
+                })()
+            })()]})()
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.chat = type("Chat", (), {"completions": FakeCompletion()})()
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-only-key")
+    monkeypatch.setattr(openai, "OpenAI", FakeClient)
+    answer = expense_advisor._synthesize("I need to expense something.", {}, [], {}, {})
+    assert calls  # LLM reasoning was attempted before validating the reply.
+    assert "item or service" in answer
+    assert "approximate amount" in answer
+    assert "business purpose" in answer
 
 
 def test_expense_escalated_reflects_compliance_result() -> None:
