@@ -35,21 +35,21 @@ async function fetchJSON(url) {
 
 // ---- Tabs ----
 const tabConversations = document.getElementById('tab-conversations');
-const tabPrompts       = document.getElementById('tab-prompts');
 const tabTickets       = document.getElementById('tab-tickets');
+const tabRegressionTests = document.getElementById('tab-regression-tests');
 const tabHrDatabase    = document.getElementById('tab-hr-database');
 const tabDatabase      = document.getElementById('tab-database');
 const panelConversations = document.getElementById('panel-conversations');
-const panelPrompts       = document.getElementById('panel-prompts');
 const panelTickets       = document.getElementById('panel-tickets');
+const panelRegressionTests = document.getElementById('panel-regression-tests');
 const panelHrDatabase    = document.getElementById('panel-hr-database');
 const panelDatabase      = document.getElementById('panel-database');
 
 function switchTab(tab) {
   const tabs = {
     conversations: [tabConversations, panelConversations],
-    prompts: [tabPrompts, panelPrompts],
     tickets: [tabTickets, panelTickets],
+    regressionTests: [tabRegressionTests, panelRegressionTests],
     hrDatabase: [tabHrDatabase, panelHrDatabase],
     database: [tabDatabase, panelDatabase],
   };
@@ -62,13 +62,13 @@ function switchTab(tab) {
 }
 
 tabConversations.addEventListener('click', () => switchTab('conversations'));
-tabPrompts.addEventListener('click', () => {
-  switchTab('prompts');
-  if (!promptsLoaded) initPrompts();
-});
 tabTickets.addEventListener('click', () => {
   switchTab('tickets');
   if (!ticketsLoaded) loadTickets();
+});
+tabRegressionTests.addEventListener('click', () => {
+  switchTab('regressionTests');
+  if (!regressionTestsLoaded) loadRegressionTests();
 });
 tabHrDatabase.addEventListener('click', () => {
   switchTab('hrDatabase');
@@ -204,7 +204,7 @@ function buildConversationCard(entry) {
     const details = document.createElement('details');
     details.className = 'log-card__reasoning';
     const summary = document.createElement('summary');
-    summary.textContent = 'LLM reasoning summary (sanitized)';
+    summary.textContent = 'Prompt and tool audit';
     details.appendChild(summary);
 
     const content = document.createElement('div');
@@ -266,69 +266,50 @@ async function initConversations() {
   } catch { setStatus(entriesList, 'Could not reach the server.'); }
 }
 
-// ---- Prompt audit (sanitized admin metadata) ----
-const promptDateSelect = document.getElementById('prompt-date-select');
-const promptList       = document.getElementById('prompt-list');
-const promptCount      = document.getElementById('prompt-count');
-let promptsLoaded = false;
+// ---- Latest regression test run ----
+const regressionTestResults = document.getElementById('regression-test-results');
+const regressionTestCount = document.getElementById('regression-test-count');
+let regressionTestsLoaded = false;
 
-function buildPromptCard(entry) {
+function buildRegressionCard(result) {
   const card = document.createElement('div');
   card.className = 'log-card';
-  const routing = entry.llm_reasoning?.routing;
-  if (!routing) {
-    card.textContent = `${formatTime(entry.timestamp)} · No prompt audit metadata was recorded for this conversation.`;
-    return card;
-  }
-  const query = document.createElement('div');
-  query.className = 'log-card__query';
-  query.textContent = entry.query;
-  card.appendChild(query);
-  const detail = document.createElement('div');
-  detail.className = 'log-card__reasoning-content';
-  const answer = entry.llm_reasoning.answer_generation || {};
-  detail.textContent = `Time: ${formatTime(entry.timestamp)}\n` +
-    `Routing instruction: ${routing.instruction || 'not recorded'}\n` +
-    `Model: ${routing.model || 'not recorded'}\n` +
-    `Selected route: ${routing.selected_workflow || 'not recorded'} (${routing.route_source || 'not recorded'})\n` +
-    `Routing response format: ${routing.response_format || 'not recorded'}\n` +
-    `Answer prompt: ${answer.prompt_type || 'not recorded'}\n` +
-    'Prompt previews and MCP calls are retained only in this authenticated admin view.';
-  card.appendChild(detail);
-  appendPromptPreview(card, 'Routing prompt preview', routing.prompt_preview);
-  appendPromptPreview(card, 'Answer prompt preview', answer.prompt_preview);
-  appendToolAudit(card, entry.tool_trace);
+  const header = document.createElement('div');
+  header.className = 'log-card__header';
+  header.appendChild(makeBadge(
+    result.status === 'passed' ? 'log-card__badge--tools' : 'log-card__badge--escalated',
+    result.status === 'passed' ? 'passed' : 'failed',
+  ));
+  const time = document.createElement('span');
+  time.className = 'log-card__time';
+  time.textContent = `Run ${formatDateTime(result.ran_at)}`;
+  header.appendChild(time);
+  card.appendChild(header);
+
+  const summary = document.createElement('div');
+  summary.className = 'log-card__answer';
+  summary.textContent = `${result.passed || 0} passed · ${result.failed || 0} failed · ` +
+    `${result.errors || 0} errors · ${result.total || 0} total · ${result.duration_seconds || 0}s`;
+  card.appendChild(summary);
+  appendPromptPreview(card, 'Test command', result.command);
+  appendPromptPreview(card, 'Test output', result.output);
   return card;
 }
 
-async function loadPrompts(date) {
-  setStatus(promptList, 'Loading…');
+async function loadRegressionTests() {
+  regressionTestsLoaded = true;
+  setStatus(regressionTestResults, 'Loading regression test results…');
+  regressionTestCount.textContent = '';
   try {
-    const data = await fetchJSON(`/admin/logs/${encodeURIComponent(date)}`);
-    const entries = (data.entries || []).filter((entry) => entry.llm_reasoning);
-    promptList.textContent = '';
-    promptCount.textContent = `${entries.length} audited conversation${entries.length !== 1 ? 's' : ''}`;
-    if (!entries.length) { setStatus(promptList, 'No prompt audit metadata for this date.'); return; }
-    entries.forEach((entry) => promptList.appendChild(buildPromptCard(entry)));
-  } catch { setStatus(promptList, 'Failed to load prompt audit.'); }
-}
-
-async function initPrompts() {
-  promptsLoaded = true;
-  try {
-    const data = await fetchJSON('/admin/logs');
-    const dates = data.dates || [];
-    promptDateSelect.textContent = '';
-    if (!dates.length) { setStatus(promptList, 'No conversations have been logged yet.'); return; }
-    dates.forEach((date) => {
-      const option = document.createElement('option');
-      option.value = date;
-      option.textContent = date;
-      promptDateSelect.appendChild(option);
-    });
-    promptDateSelect.addEventListener('change', () => loadPrompts(promptDateSelect.value));
-    loadPrompts(dates[0]);
-  } catch { setStatus(promptList, 'Could not reach the server.'); }
+    const result = await fetchJSON('/admin/regression-tests');
+    regressionTestResults.textContent = '';
+    if (!result.available) {
+      setStatus(regressionTestResults, 'No regression test run has been recorded yet.');
+      return;
+    }
+    regressionTestCount.textContent = 'Latest recorded run';
+    regressionTestResults.appendChild(buildRegressionCard(result));
+  } catch { setStatus(regressionTestResults, 'Failed to load regression test results.'); }
 }
 
 // ---- Read-only HR employee directory ----

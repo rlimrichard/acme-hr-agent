@@ -76,6 +76,7 @@ def require_admin_api(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
 _LOG_DIR = Path(__file__).parents[2] / "logs"
+_REGRESSION_RESULTS_FILE = _LOG_DIR / "latest_regression_tests.json"
 _CHROMA_SQLITE = Path(__file__).parents[2] / "chroma_db" / "chroma.sqlite3"
 _EMPLOYEES_FILE = Path(__file__).parents[2] / "data" / "employees.json"
 
@@ -357,6 +358,18 @@ def list_tickets(_admin: None = Depends(require_admin_api)) -> dict[str, Any]:
             except json.JSONDecodeError:
                 pass
     return {"tickets": list(reversed(tickets))}
+
+
+@app.get("/admin/regression-tests")
+def regression_test_results(_admin: None = Depends(require_admin_api)) -> dict[str, Any]:
+    """Return the most recent persisted regression-test run for the admin UI."""
+    if not _REGRESSION_RESULTS_FILE.is_file():
+        return {"available": False}
+    try:
+        result = json.loads(_REGRESSION_RESULTS_FILE.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {"available": False}
+    return {"available": True, **_bounded_audit_value(result)}
 
 
 @app.get("/admin/database")
