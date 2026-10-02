@@ -135,14 +135,27 @@ class HRAgent:
 
     @staticmethod
     def _is_capability_question(query: str) -> bool:
-        """Identify a request for help rather than an HR policy question."""
-        lowered = query.lower()
-        return bool(re.search(
-            r"\b(?:what\s+can\s+you\s+help(?:\s+me)?\s+with|"
-            r"what\s+do\s+you\s+(?:do|help\s+with)|"
-            r"what\s+does\s+this\s+(?:app|assistant)\s+do|"
-            r"what\s+can\s+this\s+(?:app|assistant)\s+help(?:\s+me)?\s+with)\b",
-            lowered,
+        """Recognize general introductions without swallowing a specific HR question."""
+        words = re.sub(r"[^a-z0-9]+", " ", query.lower()).strip()
+        if not words:
+            return False
+        words = re.sub(r"^(?:(?:hi|hello|hey|good morning|good afternoon)(?:\s+|$))+", "", words)
+        words = re.sub(r"\s+please$", "", words)
+        if not words:
+            return True
+        return bool(re.fullmatch(
+            r"(?:"
+            r"what can (?:you|this (?:app|assistant)) (?:do(?: for me)?|help(?: me)? with)|"
+            r"what do you (?:do|help with)|"
+            r"what does this (?:app|assistant) do|"
+            r"how can (?:you|this (?:app|assistant)) help(?: me)?|"
+            r"what are your capabilities|"
+            r"what (?:topics|questions) can you help(?: me)? with|"
+            r"(?:tell|show) me what you can do|tell me about yourself|"
+            r"can you help me|"
+            r"help"
+            r")",
+            words,
         ))
 
     @staticmethod

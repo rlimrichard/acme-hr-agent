@@ -111,14 +111,35 @@ def test_response_as_dict_has_all_required_keys() -> None:
     "What can you help with?",
     "Hi, what can you help me with?",
     "What does this assistant do?",
+    "hi what can you do?",
+    "What can you do for me?",
+    "How can you help me?",
+    "What topics can you help with?",
+    "What are your capabilities?",
+    "Tell me what you can do, please.",
+    "Hello!",
 ])
-def test_capability_questions_bypass_policy_retrieval(query) -> None:
+def test_capability_questions_bypass_policy_retrieval(monkeypatch, query) -> None:
+    def unexpected_classifier(_query):
+        pytest.fail("Capability question should not call the LLM classifier")
+
+    monkeypatch.setattr(orchestrator, "classify_workflow", unexpected_classifier)
     response = _agent().answer(query, "EMP-002")
     assert response.answer.startswith("I can help with PTO and leave")
     assert response.tool_trace == []
     assert response.citations == []
     assert response.escalated is False
     assert response.llm_reasoning["routing"]["selected_workflow"] == "help"
+
+
+@pytest.mark.parametrize("query", [
+    "What can you do about my PTO balance?",
+    "Hi, can you help with sick leave?",
+    "How can you help me expense a hotel?",
+    "What can this assistant do about working from Thailand?",
+])
+def test_specific_hr_questions_are_not_capability_questions(query) -> None:
+    assert HRAgent._is_capability_question(query) is False
 
 
 # ── PTO workflow ──────────────────────────────────────────────────────────────
