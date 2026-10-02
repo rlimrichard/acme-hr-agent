@@ -133,7 +133,43 @@ class HRAgent:
         lowered = query.lower()
         return any(re.search(p, lowered) for p in cls._EMAIL_DRAFT_PATTERNS)
 
+    @staticmethod
+    def _is_capability_question(query: str) -> bool:
+        """Identify a request for help rather than an HR policy question."""
+        lowered = query.lower()
+        return bool(re.search(
+            r"\b(?:what\s+can\s+you\s+help(?:\s+me)?\s+with|"
+            r"what\s+do\s+you\s+(?:do|help\s+with)|"
+            r"what\s+does\s+this\s+(?:app|assistant)\s+do|"
+            r"what\s+can\s+this\s+(?:app|assistant)\s+help(?:\s+me)?\s+with)\b",
+            lowered,
+        ))
+
+    @staticmethod
+    def _help() -> AgentResponse:
+        return AgentResponse(
+            answer=(
+                "I can help with PTO and leave, remote or international-work requests, "
+                "expense reimbursement and per diem, and HR policy questions—such as benefits, "
+                "workplace conduct, or vendor gifts. What would you like to know?"
+            )
+        )
+
     def answer(self, query: str, employee_id: str, confirmed: bool = False) -> AgentResponse:
+        if self._is_capability_question(query):
+            response = self._help()
+            response.llm_reasoning = {
+                "routing": {
+                    "prompt_type": "deterministic-help-route-v1",
+                    "selected_workflow": "help",
+                    "route_source": "deterministic capability route",
+                    "prompt_fields": ["employee question"],
+                    "instruction": "Answer capability questions directly without policy retrieval.",
+                    "response_format": "concise capability overview",
+                    "prompt_preview": query,
+                }
+            }
+            return response
         # Let the reasoning model classify first.  The local router is retained
         # only for availability and validation failures from the provider.
         llm_kind = classify_workflow(query)

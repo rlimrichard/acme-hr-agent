@@ -107,6 +107,20 @@ def test_response_as_dict_has_all_required_keys() -> None:
         assert key in d, f"missing key: {key}"
 
 
+@pytest.mark.parametrize("query", [
+    "What can you help with?",
+    "Hi, what can you help me with?",
+    "What does this assistant do?",
+])
+def test_capability_questions_bypass_policy_retrieval(query) -> None:
+    response = _agent().answer(query, "EMP-002")
+    assert response.answer.startswith("I can help with PTO and leave")
+    assert response.tool_trace == []
+    assert response.citations == []
+    assert response.escalated is False
+    assert response.llm_reasoning["routing"]["selected_workflow"] == "help"
+
+
 # ── PTO workflow ──────────────────────────────────────────────────────────────
 
 def test_pto_advisor_answers_information_request_without_drafting() -> None:
