@@ -416,6 +416,15 @@ def test_domestic_remote_request_does_not_claim_international_travel(monkeypatch
     assert "overseas" not in response.answer.lower()
 
 
+def test_remote_proposal_does_not_echo_follow_up_ticket_question(monkeypatch) -> None:
+    _force_deterministic_routing(monkeypatch)
+    response = _agent().answer(
+        "I want to work from another state for 2 weeks. Can you create a ticket for me?", "EMP-005"
+    )
+    assert "Working from another state for 2 weeks is not automatically" in response.answer
+    assert "Working from another state for 2 weeks. Can you" not in response.answer
+
+
 def test_remote_approval_information_does_not_offer_to_create_ticket(monkeypatch) -> None:
     _force_deterministic_routing(monkeypatch)
     response = _agent().answer("How do I request remote work approval?", "EMP-002")

@@ -507,7 +507,8 @@ class HRAgent:
             "[POL-RW-001 § 2. Eligibility]",
         )
         if location_request:
-            proposal = re.sub(r"^(?:can|could|may) i work\b", "Working", query.strip(), flags=re.I)
+            first_sentence = re.split(r"[?.!]", query.strip(), maxsplit=1)[0]
+            proposal = re.sub(r"^(?:can|could|may) i work\b", "Working", first_sentence, flags=re.I)
             proposal = re.sub(r"^i (?:want|plan|would like) to work\b", "Working", proposal, flags=re.I)
             proposal = proposal.rstrip("?. ")
             if not proposal.lower().startswith("working"):
