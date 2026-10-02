@@ -164,6 +164,10 @@ function buildConversationCard(entry) {
   header.appendChild(empEl);
 
   if (entry.escalated) header.appendChild(makeBadge('log-card__badge--escalated', 'escalated'));
+  if (entry.requires_confirmation) header.appendChild(makeBadge('log-card__badge--tools', 'awaiting employee confirmation'));
+  if (entry.created_ticket_ids?.length) {
+    header.appendChild(makeBadge('log-card__badge--tools', `ticket ${entry.created_ticket_ids.join(', ')}`));
+  }
   if (entry.tool_steps) {
     const n = Number(entry.tool_steps);
     header.appendChild(makeBadge('log-card__badge--tools', `${n} tool step${n !== 1 ? 's' : ''}`));

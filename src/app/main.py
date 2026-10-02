@@ -150,7 +150,7 @@ def _answer_confidence(query: str, result: dict[str, Any]) -> dict[str, Any]:
     return assess_answer_confidence(query, result.get("answer", ""), result.get("tool_trace", []))
 
 
-def _log_chat(employee_id: str, query: str, result: dict[str, Any]) -> None:
+def _log_chat(employee_id: str, query: str, result: dict[str, Any], confirmed: bool = False) -> None:
     try:
         _LOG_DIR.mkdir(exist_ok=True)
         now = datetime.now(timezone.utc)
@@ -160,6 +160,13 @@ def _log_chat(employee_id: str, query: str, result: dict[str, Any]) -> None:
             "employee_id": employee_id,
             "query": query,
             "answer": result.get("answer", ""),
+            "confirmed": confirmed,
+            "requires_confirmation": result.get("requires_confirmation", False),
+            "created_ticket_ids": [
+                step.get("result", {}).get("ticket_id")
+                for step in result.get("tool_trace", [])
+                if step.get("tool") == "create_mock_hr_ticket" and step.get("result", {}).get("ticket_id")
+            ],
             "confidence": _bounded_audit_value(_answer_confidence(query, result)),
             "escalated": result.get("escalated", False),
             "tool_steps": len(result.get("tool_trace", [])),
@@ -379,7 +386,7 @@ def chat(request: ChatRequest, http_request: Request, person: dict[str, Any] = D
         raise HTTPException(status_code=403, detail="Employee ID does not match signed-in account")
     try:
         result = HRAgent(MCPClient()).answer(request.query, request.employee_id, request.confirmed).as_dict()
-        _log_chat(request.employee_id, request.query, result)
+        _log_chat(request.employee_id, request.query, result, request.confirmed)
         # The sanitized audit data is written only to the authenticated admin
         # log; employee-facing API clients must not receive it.
         result.pop("llm_reasoning", None)

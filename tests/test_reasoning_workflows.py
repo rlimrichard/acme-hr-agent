@@ -1,4 +1,5 @@
 import json
+from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
@@ -58,6 +59,7 @@ def test_exact_section_phrase_is_preferred_over_close_semantic_match() -> None:
     ("Can I take some time off next week?",        "pto"),
     ("I need 2 weeks vacation in December",        "pto"),
     ("I'm requesting PTO for next Friday",         "pto"),
+    ("can i request november 2nd off?",             "pto"),
     ("I want to work from Spain for a month",      "remote"),
     ("Can I work from home abroad?",               "remote"),
     ("Can I expense a $500 monitor?",              "expense"),
@@ -68,6 +70,47 @@ def test_exact_section_phrase_is_preferred_over_close_semantic_match() -> None:
 ])
 def test_kind_routing(query: str, expected: str) -> None:
     assert HRAgent._kind(query) == expected
+
+
+def test_november_2_request_asks_for_confirmation_then_creates_dated_manager_ticket(monkeypatch) -> None:
+    monkeypatch.setattr(orchestrator, "classify_workflow", lambda _query: None)
+    query = "can i request november 2nd off?"
+    assert HRAgent._requested_pto_date(query, today=date(2026, 10, 1)) == "2026-11-02"
+    assert HRAgent._is_pto_submission(query) is True
+    assert HRAgent._is_pto_submission("What is the PTO request policy?") is False
+
+    class TicketInterceptClient(LocalMCPClient):
+        def __init__(self):
+            super().__init__()
+            self.created = []
+
+        def call(self, tool, args):
+            if tool == "create_mock_hr_ticket":
+                self.created.append(args)
+                return {"ticket_id": "TKT-TEST-PTO", "status": "created"}
+            return super().call(tool, args)
+
+    client = TicketInterceptClient()
+    agent = HRAgent(client)
+    initial = agent.answer(query, "EMP-001")
+    assert initial.requires_confirmation is True
+    assert "manager" in initial.answer.lower()
+    assert not client.created
+    confirmed = agent.answer(query, "EMP-001", confirmed=True)
+    assert confirmed.requires_confirmation is False
+    assert "TKT-TEST-PTO" in confirmed.answer
+    assert len(client.created) == 1
+    assert client.created[0]["ticket_type"] == "pto_request"
+    assert client.created[0]["requested_start_date"] == HRAgent._requested_pto_date(query)
+    assert client.created[0]["requested_end_date"] == HRAgent._requested_pto_date(query)
+
+
+def test_explicit_pto_request_is_not_lost_to_bad_llm_label(monkeypatch) -> None:
+    monkeypatch.setattr(orchestrator, "classify_workflow", lambda _query: "policy")
+    response = _agent().answer("can i request november 2nd off?", "EMP-001")
+    assert response.requires_confirmation is True
+    assert response.llm_reasoning["routing"]["route_source"] == "explicit PTO request safeguard"
+    assert "create_mock_hr_ticket" not in tool_names(response)
 
 
 def test_llm_route_is_used_before_deterministic_fallback(monkeypatch) -> None:
@@ -178,6 +221,9 @@ def test_chat_audit_persists_confidence_without_exposing_it(monkeypatch, tmp_pat
     public = response.json()
     record = json.loads(next(tmp_path.glob("*.jsonl")).read_text(encoding="utf-8"))
     assert record["confidence"]["score"] == 82.5
+    assert record["confirmed"] is False
+    assert record["requires_confirmation"] is False
+    assert record["created_ticket_ids"] == []
     assert "confidence" not in public
 
 

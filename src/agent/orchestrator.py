@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import os
 import re
+from calendar import month_abbr, month_name
 from dataclasses import dataclass, field
+from datetime import date
 from typing import Any
 
 import httpx
@@ -99,7 +101,9 @@ class HRAgent:
             "gift", "vacation", "trip", "travel", "flight", "hotel", "ticket", "event",
         )):
             return "policy"
-        if any(word in lowered for word in ("pto", "time off", "leave", "vacation", "days off", "day off", "take off")) or re.search(r"\b\d+\s+(?:days?|weeks?)\s+off\b", lowered):
+        if (HRAgent._is_pto_submission(query)
+                or any(word in lowered for word in ("pto", "time off", "leave", "vacation", "days off", "day off", "take off"))
+                or re.search(r"\b\d+\s+(?:days?|weeks?)\s+off\b", lowered)):
             return "pto"
         # Also cover natural phrasing such as "can I work for four months from
         # Thailand?".  The LLM router may be unavailable, so this fallback
@@ -139,9 +143,33 @@ class HRAgent:
         lowered = query.lower()
         return bool(re.search(
             r"\b(?:submit|file|send)\s+(?:a\s+|my\s+)?(?:pto|vacation|leave|time[ -]off)\s*request\b|"
-            r"\b(?:i want to|i would like to|i'd like to)\s+request\s+(?:pto|vacation|leave|time[ -]off)\b",
+            r"\b(?:i want to|i would like to|i'd like to)\s+request\s+(?:pto|vacation|leave|time[ -]off)\b|"
+            r"\b(?:can|could|may)\s+i\s+request\b[^?.!]{0,80}\boff\b|"
+            r"\b(?:please\s+)?request\b[^?.!]{0,80}\boff\b",
             lowered,
         ))
+
+    @staticmethod
+    def _requested_pto_date(query: str, today: date | None = None) -> str | None:
+        """Extract a stated month/day; assume the next occurrence if no year is given."""
+        months = {name.lower(): number for number, name in enumerate(month_name) if number}
+        months.update({name.lower(): number for number, name in enumerate(month_abbr) if number})
+        months["sept"] = 9
+        match = re.search(
+            r"\b(" + "|".join(sorted(months, key=len, reverse=True)) + r")\.?\s+"
+            r"(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b", query.lower(),
+        )
+        if not match:
+            return None
+        current = today or date.today()
+        year = int(match.group(3)) if match.group(3) else current.year
+        try:
+            requested = date(year, months[match.group(1)], int(match.group(2)))
+            if not match.group(3) and requested < current:
+                requested = date(year + 1, requested.month, requested.day)
+        except ValueError:
+            return None
+        return requested.isoformat()
 
     @staticmethod
     def _is_capability_question(query: str) -> bool:
@@ -197,6 +225,11 @@ class HRAgent:
         # only for availability and validation failures from the provider.
         llm_kind = classify_workflow(query)
         kind = llm_kind or self._kind(query)
+        # A clear request to submit the employee's own PTO must not silently
+        # become a read-only policy answer if the classifier mislabels it.
+        pto_request_safeguard = self._is_pto_submission(query) and self._kind(query) == "pto" and kind != "pto"
+        if pto_request_safeguard:
+            kind = "pto"
         if kind == "pto":
             response = self._pto(query, employee_id, confirmed)
         elif kind == "remote":
@@ -211,7 +244,8 @@ class HRAgent:
                 "prompt_type": "workflow-classification-v1",
                 "model": os.getenv("OPENROUTER_MODEL", "qwen/qwen3.8-27b:free"),
                 "selected_workflow": kind,
-                "route_source": "llm" if llm_kind else "deterministic fallback",
+                "route_source": ("explicit PTO request safeguard" if pto_request_safeguard
+                                 else "llm" if llm_kind else "deterministic fallback"),
                 "prompt_fields": ["employee question"],
                 "instruction": (
                     "Classify the employee question as PTO, remote work, expense, or general policy. "
@@ -291,12 +325,15 @@ class HRAgent:
             fallback=deterministic_answer,
         ) + email_block
         if submit_request and profile.get("found", False) and enough:
+            requested_date = self._requested_pto_date(query)
             if confirmed:
                 ticket = self._invoke(response, "create_mock_hr_ticket", employee_id=employee_id,
-                                      ticket_type="pto_request", subject="PTO request", description=query)
+                                      ticket_type="pto_request", subject="PTO request", description=query,
+                                      requested_start_date=requested_date, requested_end_date=requested_date)
                 response.answer = f"Your PTO request {ticket['ticket_id']} is in your manager's review queue. You can track it under Requests."
             else:
-                response.answer += " Would you like me to submit this PTO request to your manager?"
+                when = f" for {requested_date}" if requested_date else ""
+                response.answer = f"I can send your time-off request{when} to your manager for review. Would you like me to submit it?"
                 response.requires_confirmation = True
         if not profile.get("found", False):
             response.escalated = True
