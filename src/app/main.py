@@ -150,6 +150,58 @@ def _answer_confidence(query: str, result: dict[str, Any]) -> dict[str, Any]:
     return assess_answer_confidence(query, result.get("answer", ""), result.get("tool_trace", []))
 
 
+def _answer_basis(result: dict[str, Any]) -> dict[str, Any]:
+    """Record observable evidence behind the final answer, not model thoughts.
+
+    Inline citations are distinguished from sources merely retrieved by a
+    tool; a tool call alone does not prove that its output was used in prose.
+    """
+    routing = result.get("llm_reasoning", {}).get("routing", {})
+    inline_citations = list(dict.fromkeys(
+        f"{doc_id} § {section.strip()}"
+        for doc_id, section in re.findall(
+            r"\[(POL-[A-Z]+-\d+)\s*§\s*([^\]]+)\]", result.get("answer", "")
+        )
+    ))
+    retrieved_sources = list(dict.fromkeys(
+        f"{source['doc_id']} § {source['section']}"
+        for source in result.get("citations", [])
+        if isinstance(source, dict) and source.get("doc_id") and source.get("section")
+    ))
+    consulted_tools = list(dict.fromkeys(
+        step.get("tool", "") for step in result.get("tool_trace", []) if step.get("tool")
+    ))
+    ticket_ids = [
+        step.get("result", {}).get("ticket_id")
+        for step in result.get("tool_trace", [])
+        if step.get("tool") == "create_mock_hr_ticket"
+        and isinstance(step.get("result"), dict)
+        and step["result"].get("ticket_id")
+    ]
+    workflow = routing.get("selected_workflow", "unknown")
+    if ticket_ids:
+        summary = "Final answer reports a demo-app request; the ticket result is logged."
+    elif inline_citations:
+        summary = "Final answer cites policy sections; supporting retrieval and tool results are logged."
+    elif workflow == "help":
+        summary = "Direct capability response; no policy retrieval or action was needed."
+    elif workflow == "out_of_scope":
+        summary = "Out-of-scope redirect; no policy claim or action was made."
+    elif consulted_tools:
+        summary = "Tool results were consulted, but the final answer has no inline policy citation."
+    else:
+        summary = "Direct response with no MCP tool result or inline policy citation."
+    return {
+        "summary": summary,
+        "workflow": workflow,
+        "route_source": routing.get("route_source", "unknown"),
+        "inline_citations": inline_citations,
+        "retrieved_sources": retrieved_sources,
+        "consulted_tools": consulted_tools,
+        "demo_ticket_ids": ticket_ids,
+    }
+
+
 def _log_chat(employee_id: str, query: str, result: dict[str, Any], confirmed: bool = False) -> None:
     try:
         _LOG_DIR.mkdir(exist_ok=True)
@@ -169,6 +221,10 @@ def _log_chat(employee_id: str, query: str, result: dict[str, Any], confirmed: b
             ],
             "confidence": _bounded_audit_value(_answer_confidence(query, result)),
             "escalated": result.get("escalated", False),
+            "escalation_reason": (
+                result.get("escalation_message") or "Escalation flagged without a stated reason."
+            ) if result.get("escalated", False) else None,
+            "answer_basis": _answer_basis(result),
             "tool_steps": len(result.get("tool_trace", [])),
             # Admin-only, bounded diagnostic detail. API keys are never part
             # of a prompt or MCP response and are not written here.

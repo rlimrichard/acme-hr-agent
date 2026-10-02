@@ -220,11 +220,17 @@ function buildConversationCard(entry) {
     const content = document.createElement('div');
     content.className = 'log-card__reasoning-content';
     const answer = reasoning.answer_generation || {};
+    const basis = entry.answer_basis || {};
     const confidenceLabel = Number.isFinite(confidence?.score)
       ? `${confidence.score}/100` : 'unavailable';
     content.textContent = `Routing prompt: ${routing.prompt_type || 'not recorded'}\n` +
       `Model: ${routing.model || 'not recorded'}\n` +
       `Route: ${routing.selected_workflow || 'not recorded'} (${routing.route_source || 'not recorded'})\n` +
+      `Final answer basis: ${basis.summary || 'not recorded'}\n` +
+      `Sources cited in final answer: ${(basis.inline_citations || []).join('; ') || 'none'}\n` +
+      `Sources retrieved: ${(basis.retrieved_sources || []).join('; ') || 'none'}\n` +
+      `Tools consulted: ${(basis.consulted_tools || []).join(', ') || 'none'}\n` +
+      `Escalation reason: ${entry.escalated ? (entry.escalation_reason || 'not recorded') : 'not escalated'}\n` +
       `Answer confidence (relevance): ${confidenceLabel}\n` +
       `Confidence status: ${confidence?.status || 'not recorded'}\n` +
       `Confidence method: ${confidence?.method || 'not recorded'}\n` +

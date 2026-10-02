@@ -254,7 +254,70 @@ def test_chat_audit_persists_confidence_without_exposing_it(monkeypatch, tmp_pat
     assert record["confirmed"] is False
     assert record["requires_confirmation"] is False
     assert record["created_ticket_ids"] == []
+    assert record["answer_basis"]["summary"].startswith("Direct response")
+    assert record["escalation_reason"] is None
     assert "confidence" not in public
+    assert "answer_basis" not in public
+
+
+def test_audit_basis_separates_cited_evidence_from_retrieved_sources() -> None:
+    result = {
+        "answer": "Manager approval is required [POL-RW-001 § 2. Eligibility].",
+        "citations": [
+            {"doc_id": "POL-RW-001", "section": "2. Eligibility"},
+            {"doc_id": "POL-SEC-004", "section": "4. VPN"},
+        ],
+        "tool_trace": [
+            {"tool": "lookup_employee_profile", "result": {"found": True}},
+            {"tool": "search_policy_documents", "result": {"chunks": []}},
+        ],
+        "llm_reasoning": {"routing": {"selected_workflow": "remote", "route_source": "llm"}},
+    }
+    basis = app_main._answer_basis(result)
+    assert basis["inline_citations"] == ["POL-RW-001 § 2. Eligibility"]
+    assert basis["retrieved_sources"] == ["POL-RW-001 § 2. Eligibility", "POL-SEC-004 § 4. VPN"]
+    assert basis["consulted_tools"] == ["lookup_employee_profile", "search_policy_documents"]
+    assert basis["workflow"] == "remote"
+    assert basis["route_source"] == "llm"
+
+
+def test_audit_records_escalation_reason_and_confirmed_demo_action(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(app_main, "_LOG_DIR", tmp_path)
+    monkeypatch.setattr(app_main, "_answer_confidence", lambda _query, _result: {"status": "not_evaluated"})
+    app_main._log_chat("EMP-001", "Please submit PTO", {
+        "answer": "Your request TKT-TEST is in the manager queue.",
+        "escalated": True,
+        "escalation_message": "Manager approval is required.",
+        "tool_trace": [{"tool": "create_mock_hr_ticket", "args": {},
+                        "result": {"ticket_id": "TKT-TEST"}}],
+        "llm_reasoning": {"routing": {"selected_workflow": "pto", "route_source": "llm"}},
+    }, confirmed=True)
+    record = json.loads(next(tmp_path.glob("*.jsonl")).read_text(encoding="utf-8"))
+    assert record["escalation_reason"] == "Manager approval is required."
+    assert record["answer_basis"]["demo_ticket_ids"] == ["TKT-TEST"]
+    assert record["created_ticket_ids"] == ["TKT-TEST"]
+
+
+def test_chat_returns_retryable_error_when_mcp_is_offline(monkeypatch, tmp_path) -> None:
+    class OfflineMCPClient:
+        def __init__(self):
+            pass
+
+        def call(self, _tool, _args):
+            raise RuntimeError("MCP service offline")
+
+    monkeypatch.setattr(app_main, "MCPClient", OfflineMCPClient)
+    monkeypatch.setattr(orchestrator, "classify_workflow", lambda _query: "pto")
+    monkeypatch.setattr(app_main.portal, "USERS_FILE", tmp_path / "users.json")
+    app_main.portal.USERS_FILE.write_text(
+        json.dumps({"EMP-002": app_main.portal.password_hash("acme123")}), encoding="utf-8"
+    )
+    client = TestClient(app_main.app)
+    assert client.post("/login", data={"employee_id": "EMP-002", "password": "acme123"}).status_code == 200
+    response = client.post("/chat", json={"query": "How much PTO do I have?", "employee_id": "EMP-002"})
+    assert response.status_code == 503
+    assert response.json() == {"detail": "The HR tool server is unavailable. Please try again shortly."}
+    assert "MCP service offline" not in response.text
 
 
 @pytest.mark.parametrize("query", [
