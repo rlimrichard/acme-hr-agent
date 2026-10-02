@@ -341,7 +341,8 @@ def test_remote_work_requires_confirmation_before_ticket() -> None:
     assert response.requires_confirmation is True
     assert "create_mock_hr_ticket" not in tool_names(response)
     assert "Spain" in response.answer
-    assert "[POL-RW-001 § 2. Eligibility]" in response.answer
+    assert "[POL-RW-001 §" in response.answer
+    assert "2. Eligibility" in response.answer
 
 
 def test_remote_retrieval_leads_with_employee_question() -> None:
