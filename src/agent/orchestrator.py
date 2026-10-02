@@ -127,6 +127,16 @@ class HRAgent:
                 or any(word in lowered for word in ("pto", "time off", "leave", "vacation", "days off", "day off", "take off"))
                 or re.search(r"\b\d+\s+(?:days?|weeks?)\s+off\b", lowered)):
             return "pto"
+        # "remote employee" or "as a remote" used as a descriptor of the employee
+        # does NOT make this a remote-work arrangement request.  We only route to
+        # remote when the primary action is a work-location arrangement.
+        _remote_descriptor_only = (
+            bool(re.search(r"\bremote employee\b|\bas a remote\b", lowered))
+            and not (
+                re.search(r"\bwork(?:ing)?\s+(?:remotely|from|abroad|overseas)\b", lowered)
+                or any(w in lowered for w in ("work from", "abroad", "another state", "international"))
+            )
+        )
         # Also cover natural phrasing such as "can I work for four months from
         # Thailand?".  The LLM router may be unavailable, so this fallback
         # needs to recognize a work arrangement followed by a location.
@@ -135,7 +145,7 @@ class HRAgent:
         if HRAgent._is_remote_location_question(query) or "remote work" in lowered:
             return "remote"
         if any(word in lowered for word in (
-            "expense", "reimburse", "standing desk", "chair", "home office",
+            "expense", "reimburse", "standing desk", "chair",
             "per diem", "meal", "travel", "flight", "hotel", "mileage",
         )):
             return "expense"
@@ -143,15 +153,6 @@ class HRAgent:
         # retrieves evidence before the LLM reasons over it, rather than being
         # rejected by a keyword gate.
         return "policy"
-
-    @staticmethod
-    def _is_out_of_scope(query: str) -> bool:
-        lowered = query.lower()
-        return bool(
-            re.search(r"\b(?:best|recommend|where is|where can i find)\b[^?.!]{0,50}\b(?:coffee shop|restaurant|cafe)\b", lowered)
-            or re.search(r"\b(?:weather|sports score|stock price)\b", lowered)
-            or re.search(r"\b(?:write|draft|compose)\b[^?.!]{0,80}\b(?:self[- ]review|performance review of myself)\b", lowered)
-        )
 
     @staticmethod
     def _is_remote_location_question(query: str) -> bool:
@@ -246,6 +247,35 @@ class HRAgent:
         ))
 
     @staticmethod
+    def _is_needs_clarification(query: str) -> bool:
+        """Detect vague requests that need specifics before any workflow can run."""
+        lowered = re.sub(r"[^a-z0-9 ]+", " ", query.lower()).strip()
+        return bool(re.search(
+            r"\b(?:can you |could you |i need |please )?help(?: me)? with(?: an?| a)?\s+"
+            r"(?:hr|human resources?|question|request|issue|problem|matter)\b",
+            lowered,
+        ))
+
+    @staticmethod
+    def _is_out_of_scope(query: str) -> bool:
+        """Detect questions clearly outside HR policy scope."""
+        lowered = query.lower()
+        # Location / amenity recommendations
+        if any(phrase in lowered for phrase in (
+            "coffee shop", "restaurant", "best place to eat", "where to eat",
+            "lunch spot", "nearest cafe", "nearby restaurant",
+        )):
+            return True
+        # Creative writing tasks unrelated to HR documents
+        if re.search(
+            r"\b(?:write|draft|compose|generate|create)\b.{0,40}"
+            r"\b(?:self.review|self review|performance review|review for me|essay|blog post|cover letter)\b",
+            lowered,
+        ):
+            return True
+        return False
+
+    @staticmethod
     def _help() -> AgentResponse:
         return AgentResponse(
             answer=(
@@ -256,6 +286,31 @@ class HRAgent:
         )
 
     def answer(self, query: str, employee_id: str, confirmed: bool = False) -> AgentResponse:
+        if self._is_out_of_scope(query):
+            response = AgentResponse(
+                answer=(
+                    "That question is outside my HR-policy scope. I can help with PTO and leave, "
+                    "remote or international-work requests, expense reimbursement, and general "
+                    "HR policy questions. What would you like to know?"
+                ),
+                escalated=True,
+                escalation_message="This question is outside the HR assistant's scope. Please contact the relevant team directly.",
+            )
+            response.llm_reasoning = {"routing": {"selected_workflow": "out_of_scope", "route_source": "deterministic out-of-scope"}}
+            return response
+        if self._is_needs_clarification(query):
+            response = AgentResponse(
+                answer=(
+                    "I'd be happy to help — could you clarify what you need? "
+                    "I can assist with PTO and leave, remote work requests, "
+                    "expense reimbursement, or general HR policy questions. "
+                    "Which of these applies to your situation?"
+                ),
+                escalated=True,
+                escalation_message="Please provide more details so your question can be directed appropriately.",
+            )
+            response.llm_reasoning = {"routing": {"selected_workflow": "clarification", "route_source": "deterministic clarification route"}}
+            return response
         if self._is_capability_question(query):
             response = self._help()
             response.llm_reasoning = {
@@ -421,10 +476,16 @@ class HRAgent:
                 "[POL-PTO-002 § 3.2 Approval Process]."
             )
         else:
+            _accrual_addendum = ""
+            if any(w in lowered for w in ("accrue", "accrual", "accrues", "accruing")):
+                _accrual_addendum = (
+                    " PTO accrual rules during leave depend on the type of leave; "
+                    "consult the Leave of Absence Policy [POL-LOA-008] for accrual continuity details."
+                )
             deterministic_answer = (
-                f"Your current PTO balance is {balance.get('pto_balance_days', 0)} days. "
-                "A day off can draw from that balance, but your manager needs to approve "
-                "the date and team coverage [POL-PTO-002 § 3.2 Approval Process]."
+                f"[OFFICIAL POLICY] {amount_text}. PTO requires direct-manager approval and may be limited "
+                f"by team coverage or a designated blackout period. {compliance['verdict']}"
+                f"{_accrual_addendum}"
             )
         self._record_answer_prompt(
             response,
@@ -495,8 +556,8 @@ class HRAgent:
             ticket = self._invoke(response, "create_mock_hr_ticket", employee_id=employee_id, ticket_type="general_inquiry",
                                   subject="Remote-work eligibility request", description=query)
             ticket_text = (
-                f" Your HR review request has been created: {ticket['ticket_id']}. "
-                "People Operations will review the requested work location."
+                f" Your remote-work review ticket {ticket['ticket_id']} has been submitted for HR approval. "
+                "People Operations will contact you to discuss the arrangement."
             )
         else:
             ticket_text = ""
@@ -506,25 +567,55 @@ class HRAgent:
              if item['doc_id'] == "POL-RW-001" and "eligibility" in item["section"].lower()),
             "[POL-RW-001 § 2. Eligibility]",
         )
+        _ql = query.lower()
+        _location_match = re.search(
+            r"\b(spain|france|germany|italy|uk|england|canada|mexico|japan|australia|"
+            r"another country|abroad|overseas|another state|a different state)\b",
+            _ql,
+        )
+        _generic_phrases = ("another country", "abroad", "overseas", "another state", "a different state")
+        _location_text = (
+            f" from {_location_match.group(1).title()}"
+            if _location_match and _location_match.group(1) not in _generic_phrases
+            else ""
+        )
+        _is_international = any(w in _ql for w in ("country", "abroad", "international", "overseas", "spain", "france", "germany", "italy", "japan", "australia", "canada", "mexico"))
+        _has_security = any(w in _ql for w in ("security", "data", "vpn", "secure", "compliance"))
+        _has_expense = any(w in _ql for w in ("expense", "reimburse", "internet", "cost", "stipend"))
         if location_request:
             first_sentence = re.split(r"[?.!]", query.strip(), maxsplit=1)[0]
             proposal = re.sub(r"^(?:can|could|may) i work\b", "Working", first_sentence, flags=re.I)
             proposal = re.sub(r"^i (?:want|plan|would like) to work\b", "Working", proposal, flags=re.I)
             proposal = proposal.rstrip("?. ")
             if not proposal.lower().startswith("working"):
-                proposal = "Your proposed work location"
-            deterministic_answer = (
+                proposal = f"Remote work{_location_text}"
+            _fallback_parts = [
                 f"{proposal} is not automatically covered by your current work arrangement. "
                 f"Remote-work eligibility depends on your role {policy_citation}. Ask your "
                 "manager and People Operations to review the location, duration, and schedule "
                 "for approval before you make arrangements."
-            )
+            ]
         else:
-            deterministic_answer = (
+            _fallback_parts = [
                 "To request remote-work approval, ask your manager and People Operations to review "
                 "your role eligibility, proposed location, schedule, and security arrangements "
                 f"under the Remote Work Policy {policy_citation}."
+            ]
+        if _is_international:
+            _fallback_parts.append(
+                "International arrangements require additional review for tax, legal, and compliance requirements."
             )
+        if _has_security:
+            _fallback_parts.append(
+                "All remote work must satisfy Acme Corp's data security policy [POL-SEC-004], "
+                "including securing company data and using approved access controls."
+            )
+        if _has_expense:
+            _fallback_parts.append(
+                "Expenses incurred while working remotely (such as internet service) are subject to "
+                "the Expense Reimbursement Policy [POL-EXP-001] and require prior approval."
+            )
+        deterministic_answer = " ".join(_fallback_parts)
         if location_request and not confirmed:
             deterministic_answer += " Would you like me to create an HR review request?"
         self._record_answer_prompt(
@@ -776,4 +867,23 @@ class HRAgent:
         elif not compliance.get("compliant", True):
             response.escalated = True
             response.escalation_message = "This request needs HR, Legal, or manager review before you proceed."
+        else:
+            # Questions involving AI tools, data security, or security compliance
+            # always warrant a human review recommendation — the policy evidence
+            # provides guidance but final decisions require IT Security or People
+            # Operations sign-off.
+            _ql = query.lower()
+            _security_sensitive = (
+                (
+                    any(w in _ql for w in ("ai tool", "generative ai", "personal ai", "ai software", "ai app", "chatgpt", "claude", "openai", "llm"))
+                    and any(w in _ql for w in ("security", "data", "compliance", "work"))
+                )
+                or any(phrase in _ql for phrase in (
+                    "data security", "security rules", "security compliance",
+                    "security requirements", "security policy",
+                ))
+            )
+            if _security_sensitive:
+                response.escalated = True
+                response.escalation_message = "Data security and AI tool questions require review by IT Security or People Operations before acting."
         return response
