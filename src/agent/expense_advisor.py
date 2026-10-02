@@ -129,8 +129,9 @@ def _synthesize(
     prompt = _build_synthesis_prompt(query, employee, chunks, section, compliance)
 
     model = os.environ.get("OPENROUTER_MODEL", _OPENROUTER_DEFAULT_MODEL)
-    client = OpenAI(api_key=api_key, base_url=_OPENROUTER_BASE_URL)
     try:
+        client = OpenAI(api_key=api_key, base_url=_OPENROUTER_BASE_URL,
+                        timeout=12, max_retries=0)
         response = client.chat.completions.create(
             model=model,
             max_tokens=700,

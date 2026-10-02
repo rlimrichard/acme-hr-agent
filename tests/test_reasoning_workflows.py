@@ -8,7 +8,10 @@ import src.agent.orchestrator as orchestrator
 import src.agent.expense_advisor as expense_advisor
 from src.app import main as app_main
 from src.agent.orchestrator import HRAgent
-from src.agent.reasoner import assess_answer_confidence, build_confidence_prompt
+from src.agent.reasoner import (
+    assess_answer_confidence, build_confidence_prompt, classify_workflow,
+    synthesize_policy_answer,
+)
 from src.mcp.server import _prefer_exact_section_matches, app
 import src.mcp.server as mcp_server
 
@@ -198,6 +201,31 @@ def test_confidence_review_uses_question_answer_and_retrieved_evidence(monkeypat
     assert confidence["score"] == 84.0
     assert confidence["status"] == "scored"
     assert confidence["reason"] == "Relevant and supported."
+
+
+def test_reasoning_provider_deadlines_fall_back_without_retries(monkeypatch) -> None:
+    import openai
+
+    calls = []
+
+    class FakeCompletion:
+        def create(self, **kwargs):
+            raise TimeoutError("provider stalled")
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            calls.append(kwargs)
+            self.chat = type("Chat", (), {"completions": FakeCompletion()})()
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-only-key")
+    monkeypatch.setattr(openai, "OpenAI", FakeClient)
+    assert classify_workflow("Can I take PTO?") is None
+    assert synthesize_policy_answer(
+        workflow="PTO", query="Can I take PTO?", employee={}, chunks=[],
+        compliance={}, fallback="Grounded fallback",
+    ) == "Grounded fallback"
+    assert len(calls) == 2
+    assert all(call["timeout"] == 12 and call["max_retries"] == 0 for call in calls)
 
 
 def test_chat_audit_persists_confidence_without_exposing_it(monkeypatch, tmp_path) -> None:
@@ -516,6 +544,8 @@ def test_vague_expense_uses_complete_clarifier_after_incomplete_llm_reply(monkey
 
     class FakeClient:
         def __init__(self, **kwargs):
+            assert kwargs["timeout"] == 12
+            assert kwargs["max_retries"] == 0
             self.chat = type("Chat", (), {"completions": FakeCompletion()})()
 
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-only-key")

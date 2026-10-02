@@ -10,6 +10,7 @@ from typing import Any
 
 _OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 _DEFAULT_MODEL = "qwen/qwen3.8-27b:free"
+_REASONING_TIMEOUT_S = 12
 _VALID_WORKFLOWS = {"pto", "remote", "expense", "policy", "out_of_scope"}
 
 
@@ -112,7 +113,8 @@ def classify_workflow(query: str) -> str | None:
         return None
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=api_key, base_url=_OPENROUTER_BASE_URL)
+        client = OpenAI(api_key=api_key, base_url=_OPENROUTER_BASE_URL,
+                        timeout=_REASONING_TIMEOUT_S, max_retries=0)
         response = client.chat.completions.create(
             model=os.getenv("OPENROUTER_MODEL", _DEFAULT_MODEL),
             max_tokens=8,
@@ -225,7 +227,8 @@ def synthesize_policy_answer(
     )
 
     try:
-        client = OpenAI(api_key=api_key, base_url=_OPENROUTER_BASE_URL)
+        client = OpenAI(api_key=api_key, base_url=_OPENROUTER_BASE_URL,
+                        timeout=_REASONING_TIMEOUT_S, max_retries=0)
         response = client.chat.completions.create(
             model=os.getenv("OPENROUTER_MODEL", _DEFAULT_MODEL),
             max_tokens=700,

@@ -55,13 +55,20 @@ structured content and included in the operational trace.
 
 The remote-work workflow distinguishes a proposed change of work location
 from an informational policy question and retrieves the named eligibility
-section so its citation cannot drift to an unrelated travel section. Combined questions retrieve named
-sections from each governing document, such as remote-work and expense rules
+section so its citation cannot drift to an unrelated travel section. Combined
+questions retrieve named sections from each governing document, such as
+remote-work and expense rules
 for an overseas internet question. The no-index lexical fallback parses all
 four policy formats, but production uses the persisted Chroma index. A
 concise evidence-bounded fallback is used when the model is unavailable or
 misses a required topic; it does not treat the compliance heuristic's
 "no explicit prohibitions" message as approval.
+
+Routing and answer-generation model calls each have a 12-second deadline and
+no automatic retry. An upstream timeout uses the deterministic route or
+grounded answer fallback rather than leaving a chat request hanging. The
+admin-only answer-quality review has a separate six-second deadline. These
+deadlines bound provider waiting, not total request duration across tools.
 
 ## Agentic demo tasks
 
