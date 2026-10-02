@@ -88,7 +88,7 @@ The project plan, including engineer assignments, task breakdown, daily timeline
 
 ---
 
-### Design Documentation (`design-and-evaluation.md`, this file)
+### Design Documentation (`design-and-evaluation.md`)
 
 The initial architecture and design documents were drafted with Claude Code using the codebase and project plan as source material. Codex later revised them to reflect authenticated workflows, the deployed MCP SDK transport, production layout, and evaluation limitations. Documents are checked against running code because earlier generated descriptions became stale after implementation changed.
 

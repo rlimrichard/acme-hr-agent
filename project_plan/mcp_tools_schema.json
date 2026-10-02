@@ -47,6 +47,12 @@
                 "snippet": {
                   "type": "string"
                 },
+                "source_file": {
+                  "type": "string"
+                },
+                "page_number": {
+                  "type": ["integer", "null"]
+                },
                 "score": {
                   "type": "number"
                 }
@@ -87,6 +93,12 @@
           },
           "section": {
             "type": "string"
+          },
+          "source_file": {
+            "type": "string"
+          },
+          "page_number": {
+            "type": ["integer", "null"]
           },
           "text": {
             "type": "string"

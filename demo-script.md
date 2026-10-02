@@ -9,7 +9,7 @@ Suggested speaking split for the three listed contributors: Richard opens with t
 - Confirm <https://hrapp.elcaro.io/health> reports `status: ok`, `mcp_connected: true`, `chroma_loaded: true`, and eight tools. Confirm the latest GitHub Actions run for `main` succeeded and the deployed commit matches it.
 - Sign out of any prior employee and admin sessions. The synthetic employee accounts use password `acme123`; choose IDs from the app's login selector. Do not display API keys, SSH material, browser password-manager popups, or unrelated audit entries.
 - If demonstrating ticket creation, check the review queue first so a prior run does not obscure the new ticket. Note the new ticket ID on screen. Never claim that the ticket reached an external HR or payroll system: it is persisted in this demo app.
-- Have the repository open to `README.md`, `design-and-evaluation.md`, `evaluation/questions.json`, `evaluation/results-current.csv` (if present), `.github/workflows/ci.yml`, and `src/mcp/server.py`. Show actual current evaluation output, not a historical pass rate.
+- Have the repository open to `README.md`, `design-and-evaluation.md`, `evaluation/questions.json`, a freshly generated evaluation CSV (if available), `.github/workflows/ci.yml`, and `src/mcp/server.py`. The checked-in dated CSVs are historical snapshots; label them as such if shown.
 - Arrange the course-required camera, speaking, and ID check for *each* group member using the school's approved sharing method. Do not put student IDs in the public repository or expose them to an unintended audience.
 
 ## 0:00–0:50 — What is running

@@ -20,7 +20,8 @@ Employee browser or authenticated API client
   → answer, citations, snippets, tool trace and escalation status
 
 Admin-only audit logs record the routing and synthesis prompts, MCP calls and
-results, retrieved evidence, and the answer-confidence diagnostic. Employee
+results, retrieved evidence, a concise final-answer basis, any escalation
+reason, and the answer-confidence diagnostic. Employee
 responses do not expose those prompts or a hidden chain of thought.
 ```
 
@@ -38,19 +39,20 @@ code deployments and must be rebuilt after policy-document changes.
 | Concern | Current choice and reason |
 |---|---|
 | Orchestration | Manual `HRAgent` state machine keeps tool order, confirmation gates, and audit steps inspectable. The LLM classifies intent first; a deterministic fallback handles provider failure. Narrow safeguards preserve multi-policy and out-of-scope intent when a single-label classifier misroutes a question. |
-| Policy corpus | 20 synthetic documents in Markdown, HTML, TXT, and PDF. Heading-aware splitting where structure exists, with 512-character chunks and 64-character overlap. |
-| Embeddings and store | Local `all-MiniLM-L6-v2` embeddings and persistent Chroma avoid a paid vector service. Metadata includes document ID/title, section, and snippet. |
+| Policy corpus | 20 synthetic documents in Markdown, HTML, TXT, and PDF. Markdown/HTML use heading breadcrumbs; TXT/PDF use numbered sections. PDF chunks stay within one page. Chunks use 512 characters with 64-character overlap and stable content-derived IDs. |
+| Embeddings and store | A pinned revision of local `all-MiniLM-L6-v2` embeddings and persistent Chroma avoid a paid vector service. Metadata includes document ID/title, section path, source file, source snippet, and PDF page number where applicable. |
 | Retrieval | Default `top_k=5`, with optional document filtering and exact section-name preference. `/chat` accepts `top_k` from 1–20 for a real retrieval comparison. |
-| MCP | Eight typed tools are registered with the official MCP Python SDK. See [project_plan/mcp_tools_schema.json](project_plan/mcp_tools_schema.json) for the documented argument and result contracts. |
-| Safety | Tickets require a `confirmed=true` chat request and an eligible request intent; informational remote-work questions do not offer tickets. Draft emails are never sent and are not generated for vague PTO questions. Missing employee records and insufficient evidence trigger review or a guarded fallback. |
+| MCP | Eight typed tools are registered with the official MCP Python SDK. See [project_plan/mcp_tools_schema.json](project_plan/mcp_tools_schema.json) for reference argument and result contracts; runtime discovery schemas come from the registered tool signatures. |
+| Safety | Tickets require an eligible request intent and a second signed-in chat request with `confirmed=true`; informational remote-work questions do not offer tickets. This demo confirmation is a boolean, not a one-time server-bound challenge. Draft emails are never sent and are not generated for vague PTO questions. Missing employee records and insufficient evidence trigger review or a guarded fallback. |
 | Authentication | Synthetic employee sessions control chat and ticket access. HR reviews non-PTO tickets; a recorded direct manager reviews PTO tickets. This is a demo, not a production identity system. |
 
 The eight tools are `search_policy_documents`, `get_policy_section`,
 `lookup_employee_profile`, `check_pto_balance`, `lookup_benefits_status`,
 `create_mock_hr_ticket`, `draft_hr_email`, and `check_policy_compliance`.
 The agent client discovers tools with MCP `tools/list` for health checks and
-invokes them with MCP `tools/call`. The expense workflow now uses this same
-client rather than calling tool functions directly. Results are returned as
+invokes them with MCP `tools/call`. Workflow selection may be LLM-driven, but
+the orchestrator controls the tool sequence; the model does not directly call
+arbitrary tools. All workflows use the same MCP client. Results are returned as
 structured content and included in the operational trace.
 
 The remote-work workflow distinguishes a proposed change of work location
@@ -141,7 +143,7 @@ The checked-in `evaluation/results.csv` and older numbers in Git history
 predate authenticated evaluation and real `top_k` support. They are historical
 artifacts, not current performance claims.
 
-### Live evaluation — October 2, 2026
+### Historical live evaluation snapshot — October 2, 2026
 
 These runs used the same deployed application commit (`e7f3062`), question
 set, policy index, and `google/gemini-2.5-flash-lite` OpenRouter model at
@@ -178,8 +180,8 @@ which should be checked before a larger evaluation run.
 
 ## Known limitations
 
-This is a synthetic HR demo. A shared demo password, local ticket store, and
-local policy index are not a production HR integration. Retrieval may miss a
+This is a synthetic HR demo. A shared demo password, boolean-only confirmation,
+local ticket store, and local policy index are not a production HR integration. Retrieval may miss a
 relevant cross-policy section, and the deterministic compliance heuristic is
 not an authoritative approval decision. The agent must not promise approval
 or reimbursement solely because a tool returns `compliant=true`. The lexical

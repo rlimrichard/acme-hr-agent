@@ -1,4 +1,14 @@
 # Project Plan — Acme Corp HR Agentic AI System
+
+> **Historical pre-implementation plan.** The paths, tool counts, deployment
+> assumptions, unchecked tasks, and dates below record the original proposal;
+> they do not describe the current app. For the implemented workflows and MCP
+> architecture, use [README.md](../README.md) and
+> [design-and-evaluation.md](../design-and-evaluation.md). For production
+> operations, use [deployed.md](../deployed.md). The maintained reference
+> contracts are [api_contract.json](api_contract.json) and
+> [mcp_tools_schema.json](mcp_tools_schema.json).
+
 **Quantic MSAIE — AI Engineering Techniques and Architectures**  
 **Team size:** 3 engineers | **Target score:** 5/5
 

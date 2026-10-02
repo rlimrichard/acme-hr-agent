@@ -23,13 +23,13 @@ the live service or losing its persisted index and ticket data.
 | Chat API | https://hrapp.elcaro.io/chat |
 | HR Documents | https://hrapp.elcaro.io/hr-docs |
 
-## Architecture (single service)
+## Single-host architecture
 
 All components run on one OCI compute instance (`hrapp.elcaro.io`):
 
 - **FastAPI web app** — managed by systemd (`acme-hr-agent.service`), reverse-proxied by nginx on port 443 with TLS via Let's Encrypt
 - **MCP server** — official MCP SDK Streamable HTTP endpoint at `localhost:8001/mcp`, launched as a subprocess by FastAPI lifespan
-- **ChromaDB index** — built once with `python -m src.rag.ingest`, persisted to `chroma_db/` on disk
+- **ChromaDB index** — built with `python -m src.rag.ingest`, persisted to `chroma_db/` on disk across code deployments; rebuilt explicitly after corpus or ingestion changes
 - **Employee mock data** — `data/employees.json` committed to repo, read at runtime
 
 ## Server setup
@@ -86,7 +86,7 @@ The manual script follows the same checkout → sync → dependency install → 
 
 No cold-start concern — the OCI VPS runs the systemd service continuously; there is no spin-down period.
 
-Older latency figures in the repository predate the current LLM-driven workflows and should not be used as current measurements. The evaluation runner reports fresh warm-request p50/p95 (excluding login) when run against the deployed service. The VPS does not spin down, so there is no hosting cold start, though model-provider latency can vary.
+The dated October 2 sweep in [design-and-evaluation.md](design-and-evaluation.md) is a historical snapshot from commit `e7f3062`, not a measurement of every later deployment. The older `evaluation/results.csv` predates authenticated evaluation and real top-k support. The evaluation runner reports fresh warm-request p50/p95 (excluding login) when run against the deployed service. The VPS does not spin down, so there is no hosting cold start, though model-provider latency can vary.
 
 To measure production latency:
 ```bash

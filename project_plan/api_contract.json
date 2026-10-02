@@ -5,7 +5,9 @@
         "type": "object",
         "properties": {
           "query":       { "type": "string",  "description": "The user's natural language question or request" },
-          "employee_id": { "type": "string",  "description": "The authenticated employee's ID, e.g. 'EMP-002'" }
+          "employee_id": { "type": "string",  "pattern": "^EMP-\\d{3}$", "description": "Must match the signed-in employee's ID, e.g. 'EMP-002'" },
+          "confirmed": { "type": "boolean", "default": false, "description": "Explicit second-step confirmation for an eligible internal mock ticket; this demo does not use a one-time confirmation token" },
+          "top_k": { "type": "integer", "minimum": 1, "maximum": 20, "default": 5, "description": "Primary policy-search retrieval depth" }
         },
         "required": ["query", "employee_id"]
       },
@@ -56,9 +58,17 @@
           "escalated": {
             "type": "boolean",
             "description": "True if the agent determined the question is out of scope or requires human HR"
+          },
+          "escalation_message": {
+            "type": ["string", "null"],
+            "description": "Optional user-facing escalation explanation"
+          },
+          "requires_confirmation": {
+            "type": "boolean",
+            "description": "Whether the UI should offer a confirmation choice before creating an internal mock ticket"
           }
         },
-        "required": ["answer", "citations", "snippets", "tool_trace"]
+        "required": ["answer", "citations", "snippets", "tool_trace", "escalated", "escalation_message", "requires_confirmation"]
       }
     },
     "GET /health": {
@@ -69,9 +79,10 @@
           "mcp_connected": { "type": "boolean" },
           "chroma_loaded": { "type": "boolean" },
           "doc_count":     { "type": "integer" },
+          "tool_count":    { "type": "integer" },
           "version":       { "type": "string" }
         },
-        "required": ["status", "mcp_connected", "chroma_loaded"]
+        "required": ["status", "mcp_connected", "chroma_loaded", "doc_count", "tool_count", "version"]
       }
     }
   }
