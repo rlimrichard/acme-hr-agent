@@ -27,3 +27,13 @@ def test_requests_navigation_stays_on_home_page():
     assert by_id["thread"][0] == "main"
     scripts = [attrs.get("src") for tag, attrs in parser.elements if tag == "script"]
     assert scripts.index("/static/portal.js") < scripts.index("/static/app.js")
+
+
+def test_ticket_confirmation_offers_an_explicit_decline():
+    parser = ElementCollector()
+    parser.feed(INDEX.read_text(encoding="utf-8"))
+    classes = [attrs.get("class", "") for _, attrs in parser.elements]
+    assert "confirmation-actions" in classes
+    assert "confirm-btn" in classes
+    assert "decline-btn" in classes
+    assert "confirmation-declined" in classes

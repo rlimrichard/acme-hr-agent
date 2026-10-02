@@ -110,7 +110,11 @@
         <p class="message__answer"></p>
         <div class="message__escalated" hidden></div>
 
-        <button type="button" class="confirm-btn" hidden>Yes, go ahead — confirm</button>
+        <div class="confirmation-actions" hidden>
+          <button type="button" class="confirm-btn">Yes, go ahead — confirm</button>
+          <button type="button" class="decline-btn">No, don't create it</button>
+        </div>
+        <p class="confirmation-declined" role="status" hidden>Okay, I won't create a request.</p>
 
         <div class="message__section message__citations" hidden>
           <button type="button" class="section-toggle">Sources <span class="count"></span></button>

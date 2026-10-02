@@ -738,9 +738,15 @@ body {
 }
 
 /* Confirmation button, shown when the agent asks the user to confirm a side-effecting action */
+.confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.confirmation-actions[hidden] { display: none; }
 .confirm-btn {
   display: inline-block;
-  margin-top: 8px;
   border: 1px solid var(--accent);
   background: var(--accent-soft);
   color: var(--accent);
@@ -751,13 +757,20 @@ body {
   cursor: pointer;
 }
 .confirm-btn:hover { background: var(--accent); color: #fff; }
-.confirm-btn:disabled { opacity: 0.5; cursor: default; }
-/* Explicit guard: 'display: inline-block' above would otherwise override
-   the browser's default [hidden] behavior at equal specificity (the same
-   bug that made .message__escalated show on every message -- see the
-   fix/hidden-attribute-css-override branch, which adds this globally).
-   Kept here too in case this lands before that branch is merged. */
-.confirm-btn[hidden] { display: none; }
+.decline-btn {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink-soft);
+  border-radius: var(--radius);
+  padding: 7px 14px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.decline-btn:hover { border-color: var(--ink-soft); color: var(--ink); }
+.confirm-btn:disabled, .decline-btn:disabled { opacity: 0.5; cursor: default; }
+.confirmation-declined { margin: 8px 0 0; color: var(--ink-soft); font-size: 0.85rem; }
+.confirmation-declined[hidden] { display: none; }
 
 /* ---- Theme toggle button ---- */
 .theme-toggle {

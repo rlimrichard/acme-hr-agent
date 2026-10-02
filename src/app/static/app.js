@@ -164,12 +164,20 @@ function addAgentMessage(data, originalQuery, employeeId) {
   // confirming just resends the identical query + employee_id with
   // confirmed: true, rather than tracking any multi-turn state here.
   if (data.requires_confirmation) {
+    const actions = node.querySelector('.confirmation-actions');
     const confirmBtn = node.querySelector('.confirm-btn');
-    confirmBtn.hidden = false;
+    const declineBtn = node.querySelector('.decline-btn');
+    const declinedMessage = node.querySelector('.confirmation-declined');
+    actions.hidden = false;
     confirmBtn.addEventListener('click', () => {
       confirmBtn.disabled = true;
+      declineBtn.disabled = true;
       confirmBtn.textContent = 'Submitting…';
       sendQuery(originalQuery, employeeId, /* confirmed */ true);
+    });
+    declineBtn.addEventListener('click', () => {
+      actions.hidden = true;
+      declinedMessage.hidden = false;
     });
   }
 
