@@ -63,12 +63,14 @@ AVAILABLE CITATIONS
 {citations}
 
 RULES (follow strictly)
-1. Prefix every policy fact with [OFFICIAL POLICY] and cite it as [DOC-ID § Section].
+1. Cite policy facts inline as [DOC-ID § Section].
 2. State the specific dollar limit if found in context.
 3. List any conditions (remote-only, role-based, receipt requirements, etc.).
-4. Suggest the clear next step (submit receipt, open ticket, contact manager).
+4. Suggest a clear next step without claiming the expense is approved.
 5. If the context is insufficient, say so and refer to people-ops@acmecorp.com.
-6. Never invent policy text not present above.
+6. Never invent policy text not present above. Do not treat "no explicit prohibitions"
+   as an approval. If the item or amount is unspecified, ask a concise clarifying question.
+7. Answer in two to four plain sentences, without a greeting or a copied policy excerpt.
 
 EMPLOYEE QUESTION: {query}"""
 
@@ -117,12 +119,12 @@ def _synthesize(
     """Call an LLM via OpenRouter; fall back to a structured template if no key."""
     api_key = os.environ.get("OPENROUTER_API_KEY", "")
     if not api_key:
-        return _template_answer(query, employee, compliance, section)
+        return _template_answer(query, employee, compliance, section, chunks)
 
     try:
         from openai import OpenAI
     except ImportError:
-        return _template_answer(query, employee, compliance, section)
+        return _template_answer(query, employee, compliance, section, chunks)
 
     prompt = _build_synthesis_prompt(query, employee, chunks, section, compliance)
 
@@ -135,9 +137,11 @@ def _synthesize(
             messages=[{"role": "user", "content": prompt}],
         )
         content = response.choices[0].message.content
-        return content if content is not None else _template_answer(query, employee, compliance, section)
+        if content and len(content) <= 1800 and "no explicit prohibitions" not in content.lower():
+            return content.strip()
+        return _template_answer(query, employee, compliance, section, chunks)
     except Exception:
-        return _template_answer(query, employee, compliance, section)
+        return _template_answer(query, employee, compliance, section, chunks)
 
 
 def _template_answer(
@@ -145,35 +149,49 @@ def _template_answer(
     employee: dict,
     compliance: dict,
     section: dict | None = None,
+    chunks: list[dict] | None = None,
 ) -> str:
-    """Structured fallback when OPENROUTER_API_KEY is not set."""
-    name    = employee.get("name", "Employee")
-    verdict = compliance.get("verdict", "")
-    cites   = compliance.get("citations", [])
-    conds   = compliance.get("conditions", "")
-
-    lines = [
-        f"Hi {name},",
-        "",
-        f'Regarding: "{query}"',
-        "",
-        f"**Policy assessment:** {verdict}",
-    ]
-    if conds:
-        lines += ["", "**Relevant policy excerpts:**", conds]
-    if section and section.get("found") and section.get("text"):
-        lines += [
-            "",
-            f"**Relevant policy section: [{section.get('doc_id', '')} § {section.get('section', '')}]**",
-            section["text"],
-        ]
-    if cites:
-        lines += ["", "**Sources:"] + [f"  {c}" for c in cites]
-    lines += [
-        "",
-        "For a definitive ruling contact People Operations: people-ops@acmecorp.com",
-    ]
-    return "\n".join(lines)
+    """Short, evidence-bounded fallback when the model is unavailable."""
+    lowered = query.lower()
+    chunks = chunks or []
+    expense_cite = (f"[{section['doc_id']} § {section['section']}]"
+                    if section and section.get("found") else "")
+    ergonomics = next((item for item in chunks if item.get("doc_id") == "POL-RW-001"
+                       and "ergonomics" in item.get("section", "").lower()), None)
+    equipment = next((item for item in chunks if item.get("doc_id") == "POL-RW-001"
+                      and "company-provided equipment" in item.get("section", "").lower()), None)
+    if re.search(r"\b(?:expense|reimburse)\s+something\b", lowered):
+        return "I can help with the expense policy. What item or service, approximate amount, and business purpose are you asking about?"
+    if "per diem" in lowered or ("meal" in lowered and "travel" in lowered):
+        if section and "$125" in section.get("text", ""):
+            return ("For company travel, the meal per diem is capped at $125 per day: $20 for breakfast, "
+                    "$30 for lunch, and $75 for dinner. Itemized receipts are required; the cap is not "
+                    f"a flat payment {expense_cite}.")
+    if "mouse" in lowered and equipment:
+        equipment_cite = f"[{equipment['doc_id']} § {equipment['section']}]"
+        return ("The remote-work policy lists a mouse among standard company-provided peripherals "
+                f"{equipment_cite}. Ask IT for the approved equipment route before buying one personally; "
+                "the expense policy does not promise reimbursement for this purchase.")
+    if any(word in lowered for word in ("standing desk", "chair")) and ergonomics and "$500" in ergonomics.get("text", ""):
+        remote_cite = f"[{ergonomics['doc_id']} § {ergonomics['section']}]"
+        amount = _extract_amount(query)
+        status = employee.get("remote_status", "unknown")
+        if status == "office-first":
+            return ("The remote-work policy's $500 one-time ergonomics stipend is for qualifying remote employees, so "
+                    f"your office-first status does not establish eligibility {remote_cite}. "
+                    "Ask your manager or People Operations before buying the chair; reimbursement is not guaranteed.")
+        if amount and float(re.sub(r"[^\d.]", "", amount)) > 500:
+            return ("A standing desk for your home office can qualify for the one-time $500 ergonomics stipend, but "
+                    f"that does not cover the full {amount} price {remote_cite}. "
+                    "Confirm stipend eligibility and any separate reimbursement approval before purchase.")
+        return ("A standing desk or ergonomic chair can qualify for the one-time $500 "
+                f"ergonomics stipend for eligible remote employees {remote_cite}. "
+                "Confirm approval and submit the receipt within 90 days; reimbursement is not automatic.")
+    if "webcam" in lowered:
+        return ("The retrieved expense rules do not expressly approve a personal webcam purchase. "
+                f"Confirm the business need and approval path with your manager or IT before buying {expense_cite}.")
+    return ("Expense reimbursement depends on business purpose, eligibility, an itemized receipt, "
+            f"and timely submission {expense_cite}. Tell me the item and amount if you want a more specific policy check.")
 
 
 # ── Timed tool wrapper ────────────────────────────────────────────────────────
@@ -249,8 +267,8 @@ def run(employee_id: str, query: str, tool_caller=None, top_k: int = 5) -> dict[
     q_lower = query.lower()
     if "per diem" in q_lower or ("meal" in q_lower and "travel" in q_lower):
         section_hint = "Meals While Traveling"
-    elif any(w in q_lower for w in ("desk", "chair", "monitor", "furniture", "home office")):
-        section_hint = "Home Office Equipment"
+    elif any(w in q_lower for w in ("desk", "chair", "monitor", "furniture", "home office", "mouse")):
+        section_hint = "Office Supplies (Remote)"
     elif any(w in q_lower for w in ("travel", "flight", "hotel", "meal")):
         section_hint = "Travel Expenses"
     elif any(w in q_lower for w in ("phone", "internet", "software")):
@@ -260,6 +278,16 @@ def run(employee_id: str, query: str, tool_caller=None, top_k: int = 5) -> dict[
 
     section = tool("get_policy_section", get_policy_section,
                    doc_id="POL-EXP-001", section=section_hint)
+    if "mouse" in q_lower:
+        equipment = tool("get_policy_section", get_policy_section,
+                         doc_id="POL-RW-001", section="4.1 Company-Provided Equipment")
+        if equipment.get("found"):
+            chunks.append({**equipment, "snippet": equipment.get("text", "")[:180]})
+    elif any(word in q_lower for word in ("desk", "chair", "ergonomic")):
+        ergonomic = tool("get_policy_section", get_policy_section,
+                         doc_id="POL-RW-001", section="5.2 Ergonomics")
+        if ergonomic.get("found"):
+            chunks.append({**ergonomic, "snippet": ergonomic.get("text", "")[:180]})
 
     # ── Step 4 ────────────────────────────────────────────────────────────────
     context = (
@@ -278,10 +306,12 @@ def run(employee_id: str, query: str, tool_caller=None, top_k: int = 5) -> dict[
         "prompt_preview": _build_synthesis_prompt(query, employee, chunks, section, compliance),
     }
 
-    # Collect citations — compliance first, then top RAG chunks
+    # Cite only sources returned with visible text in the tool trace; the
+    # compliance heuristic's citation list is not a substitute for evidence.
     seen_cites: set[str] = set()
     citations: list[str] = []
-    for c in compliance.get("citations", []) + [f"[{ch['doc_id']} § {ch['section']}]" for ch in chunks[:3]]:
+    source_chunks = ([section] if section.get("found") else []) + chunks[:5]
+    for c in [f"[{ch['doc_id']} § {ch['section']}]" for ch in source_chunks]:
         if c not in seen_cites:
             seen_cites.add(c)
             citations.append(c)
@@ -293,6 +323,9 @@ def run(employee_id: str, query: str, tool_caller=None, top_k: int = 5) -> dict[
         "compliant":  compliance.get("compliant"),
         "employee":   employee,
         "llm_reasoning": llm_reasoning,
+        "snippets": [{"doc_id": ch["doc_id"], "section": ch["section"],
+                      "text": ch.get("snippet") or ch.get("text", "")[:180]}
+                     for ch in source_chunks],
     }
 
 

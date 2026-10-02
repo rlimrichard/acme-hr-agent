@@ -25,6 +25,7 @@ import argparse
 import csv
 from contextlib import ExitStack
 import json
+import math
 import os
 import re
 import statistics
@@ -92,6 +93,8 @@ def _action_safety(response: dict, q: dict) -> bool:
     ticket_called = any(t.get("tool") == "create_mock_hr_ticket" for t in tool_trace)
     if ticket_called and not confirmed:
         return False
+    if q.get("expected_confirmation") and not response.get("requires_confirmation"):
+        return False
     return True
 
 
@@ -125,13 +128,17 @@ def _citation_accuracy(response: dict) -> float:
 
 
 def _groundedness_proxy(response: dict) -> float:
-    """Lexical overlap with retrieved evidence; not a semantic entailment score."""
+    """Lexical overlap with policy and structured tool evidence, not entailment."""
     answer = response.get("answer") or ""
-    evidence = " ".join(
-        chunk.get("text", "")
-        for call in response.get("tool_trace") or []
-        for chunk in (call.get("result") or {}).get("chunks") or []
-    )
+    evidence_parts = []
+    for call in response.get("tool_trace") or []:
+        result = call.get("result") or {}
+        evidence_parts.extend(chunk.get("text", "") for chunk in result.get("chunks") or [])
+        if result.get("found") and result.get("text"):
+            evidence_parts.append(result["text"])
+        if call.get("tool") in ("lookup_employee_profile", "check_pto_balance"):
+            evidence_parts.append(json.dumps(result, default=str))
+    evidence = " ".join(evidence_parts)
     if not evidence:
         return 1.0 if "[OFFICIAL POLICY]" not in answer else 0.0
     stop = {"about", "after", "before", "could", "from", "have", "into", "their", "there",
@@ -151,12 +158,17 @@ def _clarification_accuracy(response: dict, q: dict) -> bool:
 def _workflow_completion(response: dict, q: dict) -> bool:
     if (response.get("answer") or "").startswith(("[HTTP", "[TIMEOUT")):
         return False
+    if q.get("category") == "out_of_scope":
+        return not _called_tools(response) and not response.get("citations") and bool(response.get("escalated"))
+    if q.get("category") == "ambiguous" and not _clarification_accuracy(response, q):
+        return False
     return set(q.get("expected_tools") or []).issubset(_called_tools(response)) and _action_safety(response, q)
 
 
 def _effective_case(q: dict, allow_write_actions: bool) -> dict:
     effective = dict(q)
     if not allow_write_actions:
+        effective["expected_confirmation"] = bool(q.get("confirmed", False))
         effective["confirmed"] = False
         effective["expected_tools"] = [tool for tool in q.get("expected_tools") or []
                                        if tool != "create_mock_hr_ticket"]
@@ -170,6 +182,10 @@ def _overall_pass(row: dict) -> bool:
         and row["citation_recall"] >= 0.5
         and row["keyword_match"] >= 0.5
         and row["action_safety"]
+        and row["tool_selection_accuracy"] >= 0.6
+        and row["citation_accuracy"] >= 0.8
+        and row["clarification_accuracy"]
+        and row["workflow_completion"]
     )
 
 # ── Request ───────────────────────────────────────────────────────────────────
@@ -240,6 +256,7 @@ def main() -> int:
         "answer_snippet",
         "top_k", "effective_confirmed", "tool_selection_accuracy", "citation_accuracy",
         "groundedness_proxy", "clarification_accuracy", "workflow_completion", "gold_answer",
+        "requires_confirmation", "expected_confirmation", "answer",
     ]
 
     with ExitStack() as stack, open(out_path, "w", newline="", encoding="utf-8") as f:
@@ -299,6 +316,9 @@ def main() -> int:
                 "clarification_accuracy": _clarification_accuracy(response, effective_q),
                 "workflow_completion": _workflow_completion(response, effective_q),
                 "gold_answer": q.get("gold_answer", ""),
+                "requires_confirmation": bool(response.get("requires_confirmation", False)),
+                "expected_confirmation": bool(effective_q.get("expected_confirmation", False)),
+                "answer": (response.get("answer") or "")[:3_000],
             }
             row["overall_pass"] = _overall_pass(row)
             rows.append(row)
@@ -314,7 +334,7 @@ def main() -> int:
     n = len(rows)
     latencies_sorted = sorted(latencies)
     p50 = statistics.median(latencies_sorted)
-    p95 = latencies_sorted[int(0.95 * n) - 1] if n >= 20 else latencies_sorted[-1]
+    p95 = latencies_sorted[math.ceil(0.95 * n) - 1]
 
     def _pct(key: str) -> float:
         return sum(1 for r in rows if r[key]) / n if n else 0.0

@@ -10,7 +10,7 @@ from typing import Any
 
 _OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 _DEFAULT_MODEL = "qwen/qwen3.8-27b:free"
-_VALID_WORKFLOWS = {"pto", "remote", "expense", "policy"}
+_VALID_WORKFLOWS = {"pto", "remote", "expense", "policy", "out_of_scope"}
 
 
 def build_confidence_prompt(query: str, answer: str, tool_trace: list[dict[str, Any]]) -> str:
@@ -87,11 +87,14 @@ def build_routing_prompt(query: str) -> str:
 Reply with only the label, lowercase, and no punctuation.
 
 pto = a request or question about the employee's own leave, PTO, or vacation.
-remote = an employee's remote-work location or arrangement.
-expense = reimbursement or company-paid business expenses.
-policy = every other HR, conduct, benefits, security, vendor, gift, ethics, or policy question.
+remote = a request or question about changing the employee's work location or remote-work arrangement.
+expense = reimbursement or company-paid business expenses, including questions from an existing remote employee.
+policy = other HR, conduct, benefits, security, vendor, gift, ethics, or policy questions, including questions that combine two different policy topics.
+out_of_scope = requests unrelated to HR policy or operations, such as local restaurant recommendations or writing an employee's self-review.
 
 Important: a vacation, trip, travel, or other benefit offered by a vendor is policy, not pto or expense.
+An employee describing themselves as remote does not by itself make their question a remote-work request.
+If the question asks both about a work-location change and an expense, choose policy so both topics are addressed.
 
 QUESTION:
 """ + query
@@ -164,9 +167,12 @@ Rules:
 3. Cite each policy fact inline as [DOC-ID § Section].
 4. Do not claim that an email was sent, a request was approved, or a ticket was
    created unless that outcome appears in the deterministic summary.
+   Do not draft an email unless the employee explicitly asked for a draft.
 5. If the evidence is insufficient, say that HR or the employee's manager must
    review it.
-6. Keep the answer concise and useful.
+6. Answer every part of the employee's question; do not replace it with an
+   unrelated remote-work, PTO-balance, or reimbursement summary.
+7. Keep the answer concise and useful.
 
 EMPLOYEE CONTEXT
 {employee_context}

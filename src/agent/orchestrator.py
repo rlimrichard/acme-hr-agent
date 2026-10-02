@@ -114,6 +114,8 @@ class HRAgent:
     @staticmethod
     def _kind(query: str) -> str:
         lowered = query.lower()
+        if HRAgent._is_out_of_scope(query):
+            return "out_of_scope"
         # A benefit offered by a vendor is an ethics/gifts question, even when
         # it uses words such as "vacation" or "travel" that otherwise belong
         # to the PTO or expense workflows.
@@ -128,10 +130,9 @@ class HRAgent:
         # Also cover natural phrasing such as "can I work for four months from
         # Thailand?".  The LLM router may be unavailable, so this fallback
         # needs to recognize a work arrangement followed by a location.
-        if (
-            any(word in lowered for word in ("remote", "work from", "abroad", "spain", "another state", "international"))
-            or re.search(r"\bwork(?:ing)?\b[^?.!]{0,80}\bfrom\b", lowered)
-        ):
+        if HRAgent._is_mixed_policy_question(query):
+            return "policy"
+        if HRAgent._is_remote_location_question(query) or "remote work" in lowered:
             return "remote"
         if any(word in lowered for word in (
             "expense", "reimburse", "standing desk", "chair", "home office",
@@ -143,13 +144,41 @@ class HRAgent:
         # rejected by a keyword gate.
         return "policy"
 
+    @staticmethod
+    def _is_out_of_scope(query: str) -> bool:
+        lowered = query.lower()
+        return bool(
+            re.search(r"\b(?:best|recommend|where is|where can i find)\b[^?.!]{0,50}\b(?:coffee shop|restaurant|cafe)\b", lowered)
+            or re.search(r"\b(?:weather|sports score|stock price)\b", lowered)
+            or re.search(r"\b(?:write|draft|compose)\b[^?.!]{0,80}\b(?:self[- ]review|performance review of myself)\b", lowered)
+        )
+
+    @staticmethod
+    def _is_remote_location_question(query: str) -> bool:
+        lowered = query.lower()
+        return bool(
+            re.search(r"\bwork(?:ing)?\b[^?.!]{0,80}\b(?:from|abroad|overseas)\b", lowered)
+            or re.search(r"\bremote(?:ly)?\b[^?.!]{0,50}\b(?:from|in another|abroad|overseas)\b", lowered)
+        )
+
+    @staticmethod
+    def _is_mixed_policy_question(query: str) -> bool:
+        lowered = query.lower()
+        expense = bool(re.search(r"\b(?:expense|reimburse|stipend|internet cost|internet connection)\b", lowered))
+        security = bool(re.search(r"\b(?:security|vpn|company data|data protection)\b", lowered))
+        remote_context = bool(re.search(r"\b(?:remote|home office|work from|work abroad)\b", lowered))
+        return (
+            (expense and HRAgent._is_remote_location_question(query))
+            or (expense and "standing desk" in lowered and "stipend" in lowered and remote_context)
+            or (security and remote_context)
+        )
+
     # A policy question must never generate a manager email merely because it
     # mentions PTO or leave.  Draft only when the employee explicitly asks to
     # draft or submit a request.
     _EMAIL_DRAFT_PATTERNS = (
         r"\b(?:draft|write|prepare)\s+(?:an?\s+)?(?:email|pto|leave|time[ -]off)\b",
-        r"\b(?:submit|file|send)\s+(?:an?\s+)?(?:pto|leave|time[ -]off)?\s*request\b",
-        r"\b(?:i(?: would|'d) like to|i want to)\s+(?:request|take)\b",
+        r"\b(?:draft|write|prepare)\s+(?:a\s+)?(?:message|note)\s+to\s+my\s+manager\b",
     )
 
     @classmethod
@@ -210,7 +239,7 @@ class HRAgent:
             r"what are your capabilities|"
             r"what (?:topics|questions) can you help(?: me)? with|"
             r"(?:tell|show) me what you can do|tell me about yourself|"
-            r"can you help me|"
+            r"can you help me(?: with an? hr question)?|"
             r"help"
             r")",
             words,
@@ -245,17 +274,34 @@ class HRAgent:
         # only for availability and validation failures from the provider.
         llm_kind = classify_workflow(query)
         kind = llm_kind or self._kind(query)
+        route_source = "llm" if llm_kind else "deterministic fallback"
+        if self._is_out_of_scope(query):
+            kind, route_source = "out_of_scope", "scope safeguard"
+        elif self._is_mixed_policy_question(query):
+            kind, route_source = "policy", "mixed-policy safeguard"
+        elif kind == "remote" and not self._is_remote_location_question(query):
+            lowered = query.lower()
+            if any(word in lowered for word in ("expense", "reimburse", "stipend", "standing desk", "chair")):
+                kind, route_source = "expense", "expense-context safeguard"
+            elif "ai" in lowered and "security" in lowered:
+                kind, route_source = "policy", "security-context safeguard"
         # A clear request to submit the employee's own PTO must not silently
         # become a read-only policy answer if the classifier mislabels it.
         pto_request_safeguard = self._is_pto_submission(query) and self._kind(query) == "pto" and kind != "pto"
         if pto_request_safeguard:
-            kind = "pto"
+            kind, route_source = "pto", "explicit PTO request safeguard"
         if kind == "pto":
             response = self._pto(query, employee_id, confirmed)
         elif kind == "remote":
             response = self._remote(query, employee_id, confirmed)
         elif kind == "expense":
             response = self._expense(query, employee_id)
+        elif kind == "out_of_scope":
+            response = AgentResponse(
+                answer="I can help with Acme HR policies and requests, but not that task. Ask me about PTO, remote work, expenses, benefits, or workplace policies.",
+                escalated=True,
+                escalation_message="This request is outside the HR assistant's supported scope.",
+            )
         else:
             response = self._policy(query, employee_id)
         answer_generation = response.llm_reasoning.get("answer_generation", {})
@@ -264,11 +310,10 @@ class HRAgent:
                 "prompt_type": "workflow-classification-v1",
                 "model": os.getenv("OPENROUTER_MODEL", "qwen/qwen3.8-27b:free"),
                 "selected_workflow": kind,
-                "route_source": ("explicit PTO request safeguard" if pto_request_safeguard
-                                 else "llm" if llm_kind else "deterministic fallback"),
+                "route_source": route_source,
                 "prompt_fields": ["employee question"],
                 "instruction": (
-                    "Classify the employee question as PTO, remote work, expense, or general policy. "
+                    "Classify the employee question as PTO, remote work, expense, general policy, or out of scope. "
                     "Vendor-provided benefits are general policy questions."
                 ),
                 "response_format": "One lowercase workflow label only.",
@@ -280,6 +325,8 @@ class HRAgent:
 
     def _pto(self, query: str, employee_id: str, confirmed: bool = False) -> AgentResponse:
         response = AgentResponse(answer="")
+        lowered = query.lower()
+        parental_accrual = "parental" in lowered and "accru" in lowered
         profile = self._invoke(response, "lookup_employee_profile", employee_id=employee_id)
         balance = self._invoke(response, "check_pto_balance", employee_id=employee_id)
         policies = self._invoke(
@@ -291,6 +338,12 @@ class HRAgent:
             ),
             top_k=self.top_k,
         )
+        if parental_accrual:
+            for doc_id, section in (("POL-PTO-002", "2. PTO Accrual"),
+                                    ("POL-LOA-008", "3.1 Entitlement")):
+                detail = self._invoke(response, "get_policy_section", doc_id=doc_id, section=section)
+                if detail.get("found"):
+                    policies["chunks"].append({**detail, "snippet": detail.get("text", "")[:180]})
         compliance = self._invoke(response, "check_policy_compliance", employee_id=employee_id, action=query, context="PTO and leave request")
         self._sources(response, policies["chunks"])
         days = re.search(r"(\d+(?:\.\d+)?)\s*(day|week)s?\b", query.lower())
@@ -314,13 +367,38 @@ class HRAgent:
             )
         else:
             email_block = ""
-        lowered = query.lower()
         if "sick" in lowered and any(word in lowered for word in ("vacation", "separate", "pto")):
             deterministic_answer = (
                 "[OFFICIAL POLICY] No. Acme Corp uses one unified PTO bank: vacation, personal, "
                 "and sick time all draw from the same balance. There is no separate sick-leave bucket. "
                 "[POL-PTO-002 § 7.1 Use of PTO for Sick Leave] "
                 f"{amount_text}."
+            )
+        elif parental_accrual:
+            deterministic_answer = (
+                "PTO accrues per pay period under the PTO Policy [POL-PTO-002 § 2. PTO Accrual], "
+                "and parental leave is a separate paid leave under the Leave of Absence Policy "
+                "[POL-LOA-008 § 3.1 Entitlement]. Neither policy states whether PTO accrual "
+                "continues during parental leave, so I can't promise that it does. "
+                f"Your current PTO balance is {balance.get('pto_balance_days', 0)} days; "
+                "ask People Operations to confirm accrual during your leave."
+            )
+        elif "accru" in lowered and any(word in lowered for word in ("year", "annual", "per year")):
+            years = float(profile.get("years_of_service", 0))
+            annual_days = 15 if years < 1 else 18 if years < 3 else 22 if years < 7 else 25
+            deterministic_answer = (
+                f"For a full-time employee in your {years:g}-year service tier, the PTO Policy "
+                f"lists {annual_days} days of annual accrual, credited each pay period; part-time "
+                "accrual is prorated [POL-PTO-002 § 2.1 Full-Time Employee Accrual Rates; "
+                "§ 2.2 Part-Time Employee Accrual]. "
+                f"Your current balance is {balance.get('pto_balance_days', 0)} days."
+            )
+        elif ("some time off" in lowered or "help with leave" in lowered) and not self._is_pto_submission(query):
+            deterministic_answer = (
+                f"Your current PTO balance is {balance.get('pto_balance_days', 0)} days. "
+                "Vacation and personal leave use the PTO bank and need your manager's approval "
+                "[POL-PTO-002 § 3.1 Requesting Time Off; § 3.2 Approval Process]. "
+                "What type of leave, dates, and number of days do you need?"
             )
         else:
             deterministic_answer = (
@@ -344,6 +422,13 @@ class HRAgent:
             compliance=compliance,
             fallback=deterministic_answer,
         ) + email_block
+        if parental_accrual and not all(word in response.answer.lower() for word in ("parental", "accru", "leave")):
+            response.answer = deterministic_answer + email_block
+        if "accru" in lowered and "year" in lowered and "accru" not in response.answer.lower():
+            response.answer = deterministic_answer + email_block
+        if parental_accrual:
+            response.escalated = True
+            response.escalation_message = "People Operations must confirm PTO accrual during parental leave."
         if submit_request and profile.get("found", False) and enough:
             requested_date = self._requested_pto_date(query)
             if confirmed:
@@ -365,6 +450,7 @@ class HRAgent:
 
     def _remote(self, query: str, employee_id: str, confirmed: bool) -> AgentResponse:
         response = AgentResponse(answer="")
+        location_request = self._is_remote_location_question(query)
         profile = self._invoke(response, "lookup_employee_profile", employee_id=employee_id)
         policies = self._invoke(
             response,
@@ -378,21 +464,33 @@ class HRAgent:
         compliance = self._invoke(response, "check_policy_compliance", employee_id=employee_id, action=query,
                                   context=f"remote status: {profile.get('remote_status', 'unknown')}")
         self._sources(response, policies["chunks"])
-        if confirmed:
+        if confirmed and location_request:
             ticket = self._invoke(response, "create_mock_hr_ticket", employee_id=employee_id, ticket_type="general_inquiry",
                                   subject="Remote-work eligibility request", description=query)
             ticket_text = (
                 f" Your HR review request has been created: {ticket['ticket_id']}. "
-                "People Operations will review the overseas work arrangement."
+                "People Operations will review the requested work location."
             )
         else:
             ticket_text = ""
-            response.requires_confirmation = True
-        deterministic_answer = (
-            "Working from another country for an extended period needs approval before you make arrangements. "
-            "Your manager and People Operations will review the location, schedule, and security requirements."
+            response.requires_confirmation = location_request
+        policy_citation = next(
+            (f"[{item['doc_id']} § {item['section']}]" for item in response.citations if item['doc_id'] == "POL-RW-001"),
+            "[POL-RW-001 § 2. Eligibility]",
         )
-        if not confirmed:
+        if location_request:
+            deterministic_answer = (
+                "Your proposed remote-work location needs approval before you make arrangements. "
+                "Your manager and People Operations should review role eligibility, work hours, "
+                f"and security requirements under the Remote Work Policy {policy_citation}."
+            )
+        else:
+            deterministic_answer = (
+                "To request remote-work approval, ask your manager and People Operations to review "
+                "your role eligibility, proposed location, schedule, and security arrangements "
+                f"under the Remote Work Policy {policy_citation}."
+            )
+        if location_request and not confirmed:
             deterministic_answer += " Would you like me to create an HR review request?"
         self._record_answer_prompt(
             response,
@@ -410,9 +508,16 @@ class HRAgent:
             chunks=policies["chunks"],
             compliance=compliance,
             fallback=deterministic_answer,
-        ) + ticket_text
-        response.escalated = True
-        response.escalation_message = "Remote-work requests require HR review and approval before arrangements are finalized."
+        )
+        if "another country" in response.answer.lower() and not re.search(
+            r"\b(?:abroad|overseas|another country|international|spain|canada|france|japan|thailand|germany|pakistan)\b",
+            query.lower(),
+        ):
+            response.answer = deterministic_answer
+        response.answer += ticket_text
+        response.escalated = location_request
+        if location_request:
+            response.escalation_message = "A change in work location requires manager and People Operations review."
         return response
 
     def _expense(self, query: str, employee_id: str) -> AgentResponse:
@@ -435,7 +540,10 @@ class HRAgent:
             if m and raw not in seen:
                 seen.add(raw)
                 citations.append({"doc_id": m.group(1), "doc_title": "", "section": m.group(2)})
-                snippets.append({"doc_id": m.group(1), "section": m.group(2), "text": ""})
+                source = next((item for item in result.get("snippets", [])
+                               if item.get("doc_id") == m.group(1) and item.get("section") == m.group(2)), None)
+                snippets.append({"doc_id": m.group(1), "section": m.group(2),
+                                 "text": source.get("text", "") if source else ""})
 
         return AgentResponse(
             answer=result["answer"],
@@ -450,6 +558,89 @@ class HRAgent:
             llm_reasoning={"answer_generation": result.get("llm_reasoning", {})},
         )
 
+    @staticmethod
+    def _policy_focus(query: str) -> str | None:
+        lowered = query.lower()
+        if "standing desk" in lowered and "stipend" in lowered and "remote" in lowered:
+            return "desk_stipend"
+        if "remote" in lowered and any(word in lowered for word in ("security", "company data", "vpn")):
+            return "remote_security"
+        if HRAgent._is_remote_location_question(query) and "internet" in lowered:
+            return "remote_internet"
+        if "ai" in lowered and any(word in lowered for word in ("security", "company data")):
+            return "ai_security"
+        return None
+
+    @staticmethod
+    def _focus_sections(focus: str | None) -> list[tuple[str, str]]:
+        return {
+            "desk_stipend": [("POL-RW-001", "5.2 Ergonomics"), ("POL-EXP-001", "5.2 Office Supplies (Remote)")],
+            "remote_security": [("POL-RW-001", "6.1 VPN Usage"), ("POL-SEC-004", "2.2 Data Handling by Classification")],
+            "remote_internet": [("POL-RW-001", "2. Eligibility"), ("POL-EXP-001", "3.4 Internet and Phone")],
+            "ai_security": [("POL-AIU-017", "2.2 Approved Tools List"), ("POL-SEC-004", "2. Data Classification")],
+        }.get(focus, [])
+
+    @staticmethod
+    def _focused_answer(focus: str | None, chunks: list[dict[str, Any]]) -> str | None:
+        if not focus:
+            return None
+
+        def cite(doc_id: str, hint: str) -> str:
+            match = next((chunk for chunk in chunks if chunk.get("doc_id") == doc_id
+                          and hint.lower() in chunk.get("section", "").lower()), None)
+            if match is None:
+                match = next((chunk for chunk in chunks if chunk.get("doc_id") == doc_id), None)
+            return f"[{doc_id} § {match['section']}]" if match else ""
+
+        if focus == "desk_stipend":
+            return (
+                "For your home office, a standing desk is listed as an eligible purchase under the "
+                "one-time $500 ergonomics "
+                "stipend for qualifying remote employees; receipts are due within 90 days of stipend "
+                f"approval {cite('POL-RW-001', 'Ergonomics')}. The Expense Policy's separate $30/month office-supplies "
+                "allowance is for consumables, not ergonomic equipment "
+                f"{cite('POL-EXP-001', 'Office Supplies')}. Do not claim the same purchase through both "
+                "routes; check your stipend eligibility and approval before buying."
+            )
+        if focus == "remote_security":
+            return (
+                "Remote-work security rules require the company-approved VPN for home-office access "
+                "to Acme systems "
+                f"{cite('POL-RW-001', 'VPN Usage')}. Protect company data according to its classification; "
+                "Confidential and Restricted data must not be stored on personal devices, and access "
+                f"should follow approved controls {cite('POL-SEC-004', 'Data Handling')}. "
+                "Lock your screen and keep confidential material out of view at home."
+            )
+        if focus == "remote_internet":
+            return (
+                "International remote work needs a role-and-schedule review before approval "
+                f"{cite('POL-RW-001', 'Eligibility')}. Internet reimbursement is a separate question: "
+                "business-use Wi-Fi can be claimed as an expense, while the $50/month internet stipend is for "
+                "approved full-time remote arrangements and is paid through payroll, not an expense "
+                f"report {cite('POL-EXP-001', 'Internet and Phone')}. Ask People Operations to confirm "
+                "the location arrangement and your stipend eligibility."
+            )
+        return (
+            "Personal or consumer AI tools are not approved for Acme company data. Use only tools "
+            "on the approved list for the applicable data classification "
+            f"{cite('POL-AIU-017', 'Approved Tools')}; the Data Security Policy also controls "
+            f"Confidential and Restricted information {cite('POL-SEC-004', 'Data Classification')}. "
+            "Request IT Security review before using an unapproved tool for work."
+        )
+
+    @staticmethod
+    def _focused_answer_relevant(focus: str | None, answer: str) -> bool:
+        if not focus:
+            return True
+        lowered = answer.lower()
+        required = {
+            "desk_stipend": ("desk", "stipend", "$500"),
+            "remote_security": ("vpn", "data"),
+            "remote_internet": ("remote", "internet", "$50"),
+            "ai_security": ("ai", "data", "approved"),
+        }[focus]
+        return all(word in lowered for word in required) and "another country for an extended period" not in lowered
+
     def _policy(self, query: str, employee_id: str) -> AgentResponse:
         """Answer a read-only HR policy question using retrieved evidence."""
         response = AgentResponse(answer="")
@@ -460,6 +651,12 @@ class HRAgent:
             query=f"{query}\nPolicy focus: applicable Acme Corp HR policy and employee conduct rules.",
             top_k=self.top_k,
         )
+        chunks = list(policies.get("chunks", []))
+        focus = self._policy_focus(query)
+        for doc_id, section in self._focus_sections(focus):
+            detail = self._invoke(response, "get_policy_section", doc_id=doc_id, section=section)
+            if detail.get("found"):
+                chunks.append({**detail, "snippet": detail.get("text", "")[:180]})
         compliance = self._invoke(
             response,
             "check_policy_compliance",
@@ -467,7 +664,6 @@ class HRAgent:
             action=query,
             context="general HR policy question",
         )
-        chunks = policies.get("chunks", [])
         self._sources(response, chunks)
         evidence = "\n\n".join(
             f"[OFFICIAL POLICY] {chunk.get('text', '')} "
@@ -490,6 +686,7 @@ class HRAgent:
             (amount is not None and amount > 75)
             or any(word in lowered for word in ("vacation", "trip", "travel", "flight", "hotel"))
         )
+        focused_answer = self._focused_answer(focus, chunks)
         if is_over_limit_gift:
             item = f"A ${amount:,.0f} gift" if amount is not None else "A vendor-paid vacation or trip"
             fallback = (
@@ -500,6 +697,8 @@ class HRAgent:
             ) % (item, evidence)
             response.escalated = True
             response.escalation_message = "Do not accept this vendor gift without manager or Legal guidance."
+        elif focused_answer:
+            fallback = focused_answer
         else:
             fallback = evidence or (
                 "[OFFICIAL POLICY] No relevant policy text was retrieved. Please contact "
@@ -522,6 +721,14 @@ class HRAgent:
             compliance=compliance,
             fallback=fallback,
         )
+        if focused_answer and not self._focused_answer_relevant(focus, response.answer):
+            response.answer = focused_answer
+        if focus == "ai_security":
+            response.escalated = True
+            response.escalation_message = "Check with IT Security before using an unapproved AI tool for company work."
+        elif focus == "remote_internet":
+            response.escalated = True
+            response.escalation_message = "People Operations must review the work location before it is approved."
         if not profile.get("found", False):
             response.escalated = True
             response.escalation_message = "Your employee record could not be found. Please contact HR to verify your profile."

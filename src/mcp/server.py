@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import re
 import uuid
+from functools import lru_cache
 from datetime import UTC, datetime
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -82,30 +83,65 @@ _load_tickets()
 
 # ── Internal search helpers ───────────────────────────────────────────────────
 
-def _citation_from_path(path: Path) -> tuple[str, str]:
-    text   = path.read_text(encoding="utf-8")
-    doc_id = re.search(r"POL-[A-Z]+-\d+", text)
-    title  = re.search(r"^#\s+(.+)$", text, re.MULTILINE)
-    return (doc_id.group(0) if doc_id else path.stem.upper(),
-            title.group(1)  if title  else path.stem)
+@lru_cache(maxsize=32)
+def _policy_lines(path_string: str) -> tuple[str, str, list[tuple[str, str]]]:
+    """Lightweight, format-aware fallback when the vector index is unavailable."""
+    path = Path(path_string)
+    lines: list[tuple[str, str]] = []
+    title = path.stem.replace("_", " ").title()
+    section = title
+    if path.suffix == ".html":
+        from bs4 import BeautifulSoup
+
+        soup = BeautifulSoup(path.read_text(encoding="utf-8"), "html.parser")
+        for element in soup.find_all(["h1", "h2", "h3", "p", "li", "tr"]):
+            content = element.get_text(" ", strip=True)
+            if not content:
+                continue
+            if element.name in ("h1", "h2", "h3"):
+                section = content
+                if element.name == "h1":
+                    title = content
+            lines.append((section, content))
+    else:
+        if path.suffix == ".pdf":
+            from pypdf import PdfReader
+
+            text = "\n".join(page.extract_text() or "" for page in PdfReader(str(path)).pages)
+        else:
+            text = path.read_text(encoding="utf-8")
+        for raw in text.splitlines():
+            content = raw.strip()
+            if not content:
+                continue
+            heading = re.match(r"^(?:#{1,3}\s*)?(\d+(?:\.\d+)*\.?)\s+([A-Z][^|]{2,90})$", content)
+            if content.startswith("#"):
+                section = content.lstrip("#").strip()
+                if content.startswith("# "):
+                    title = section
+            elif heading:
+                section = f"{heading.group(1)} {heading.group(2)}"
+            lines.append((section, content))
+    combined = "\n".join(content for _, content in lines[:20])
+    doc_id_match = re.search(r"POL-[A-Z]+-\d+", combined)
+    doc_id = doc_id_match.group(0) if doc_id_match else path.stem.upper()
+    return doc_id, title, lines
 
 
 def _lexical_search(query: str, top_k: int, doc_id: str | None = None) -> list[dict[str, Any]]:
     """Deterministic keyword fallback used when the Chroma index is unavailable."""
     terms = {t.lower() for t in re.findall(r"[a-zA-Z]{3,}", query)}
     matches: list[dict[str, Any]] = []
-    for policy in _POLICIES_DIR.glob("*.md"):
-        pid, title = _citation_from_path(policy)
+    for policy in sorted(_POLICIES_DIR.iterdir()):
+        if policy.suffix not in (".md", ".html", ".txt", ".pdf"):
+            continue
+        pid, title, lines = _policy_lines(str(policy))
         if doc_id and pid != doc_id:
             continue
-        lines   = policy.read_text(encoding="utf-8").splitlines()
-        section = title
-        for i, line in enumerate(lines):
-            if line.startswith("#"):
-                section = line.lstrip("#").strip()
-            score = sum(t in line.lower() for t in terms)
+        for i, (section, line) in enumerate(lines):
+            score = sum(t in line.lower() or t in section.lower() for t in terms)
             if score:
-                window = " ".join(lines[max(0, i - 1):i + 3]).strip()
+                window = " ".join(text for _, text in lines[max(0, i - 1):i + 3]).strip()
                 dist   = max(0.0, 1.0 - score / max(len(terms), 1))
                 matches.append({"doc_id": pid, "doc_title": title, "section": section,
                                  "text": window, "snippet": window[:180],
@@ -189,15 +225,15 @@ def get_policy_section(doc_id: str, section: str) -> dict[str, Any]:
     if not chunks:
         return {"doc_id": doc_id, "doc_title": "", "section": section, "text": "", "found": False}
     needle = " ".join(section.lower().split())
-    best = next(
-        (chunk for chunk in chunks if needle in " ".join(chunk["section"].lower().split())),
-        chunks[0],
-    )
+    matches = [chunk for chunk in chunks if needle in " ".join(chunk["section"].lower().split())]
+    best = matches[0] if matches else chunks[0]
+    section_chunks = [chunk for chunk in matches if chunk["section"] == best["section"]]
+    section_text = "\n".join(dict.fromkeys(chunk["text"] for chunk in section_chunks or [best]))[:8_000]
     return {
         "doc_id":    best["doc_id"],
         "doc_title": best["doc_title"],
         "section":   best["section"],
-        "text":      best["text"],
+        "text":      section_text,
         "found":     True,
     }
 

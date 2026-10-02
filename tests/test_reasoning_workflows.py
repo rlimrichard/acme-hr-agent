@@ -345,7 +345,7 @@ def test_remote_work_ticket_created_when_confirmed(monkeypatch, tmp_path) -> Non
     assert response.requires_confirmation is False
     assert "create_mock_hr_ticket" in tool_names(response)
     assert "Your HR review request has been created:" in response.answer
-    assert "People Operations will review the overseas work arrangement." in response.answer
+    assert "People Operations will review the requested work location." in response.answer
     assert len((tmp_path / "tickets.jsonl").read_text(encoding="utf-8").splitlines()) == 1
 
 
@@ -388,21 +388,85 @@ def test_country_based_work_arrangements_use_remote_workflow(monkeypatch, query)
     assert response.escalated is True
     assert response.requires_confirmation is True
     assert response.citations[0]["doc_id"] == "POL-RW-001"
-    assert "Working from another country for an extended period needs approval" in response.answer
+    assert "Your proposed remote-work location needs approval" in response.answer
     assert "Would you like me to create an HR review request?" in response.answer
     assert "[OFFICIAL POLICY]" not in response.answer
+
+
+def test_domestic_remote_request_does_not_claim_international_travel(monkeypatch) -> None:
+    _force_deterministic_routing(monkeypatch)
+    response = _agent().answer("I want to work from another state for two weeks", "EMP-005")
+    assert response.requires_confirmation is True
+    assert "another country" not in response.answer.lower()
+    assert "overseas" not in response.answer.lower()
+
+
+def test_remote_approval_information_does_not_offer_to_create_ticket(monkeypatch) -> None:
+    _force_deterministic_routing(monkeypatch)
+    response = _agent().answer("How do I request remote work approval?", "EMP-002")
+    assert response.requires_confirmation is False
+    assert "create_mock_hr_ticket" not in tool_names(response)
+    assert "approval" in response.answer.lower()
+
+
+@pytest.mark.parametrize("query,expected_text,expected_docs", [
+    ("Can I expense a standing desk and also claim a home office stipend as a remote employee?",
+     "$500", {"POL-RW-001", "POL-EXP-001"}),
+    ("As a remote employee, what data security rules apply to my home office setup?",
+     "vpn", {"POL-RW-001", "POL-SEC-004"}),
+    ("Can I work remotely from another country and also expense my internet connection there?",
+     "$50/month", {"POL-RW-001", "POL-EXP-001"}),
+    ("Can I use personal AI tools for work, and does that affect data security compliance?",
+     "approved", {"POL-AIU-017", "POL-SEC-004"}),
+])
+def test_mixed_policy_questions_answer_all_topics(monkeypatch, query, expected_text, expected_docs) -> None:
+    # Even an incorrect single-workflow LLM label cannot suppress the other policy topic.
+    monkeypatch.setattr(orchestrator, "classify_workflow", lambda _query: "remote")
+    response = _agent().answer(query, "EMP-001")
+    assert expected_text.lower() in response.answer.lower()
+    assert expected_docs.issubset({citation["doc_id"] for citation in response.citations})
+    assert "another country for an extended period" not in response.answer.lower()
+    assert response.requires_confirmation is False
+
+
+def test_parental_leave_accrual_does_not_invent_a_rule(monkeypatch) -> None:
+    _force_deterministic_routing(monkeypatch)
+    response = _agent().answer("Does my PTO continue to accrue during parental leave?", "EMP-002")
+    assert "neither policy states" in response.answer.lower()
+    assert {"POL-PTO-002", "POL-LOA-008"}.issubset({c["doc_id"] for c in response.citations})
+
+
+@pytest.mark.parametrize("query", [
+    "What is the best coffee shop near the office?",
+    "Can you write my quarterly performance self-review for me?",
+])
+def test_out_of_scope_requests_do_not_claim_policy_evidence(monkeypatch, query) -> None:
+    monkeypatch.setattr(orchestrator, "classify_workflow", lambda _query: "policy")
+    response = _agent().answer(query, "EMP-001")
+    assert response.escalated is True
+    assert response.citations == []
+    assert response.tool_trace == []
+    assert "outside" not in response.answer.lower() or "not that task" in response.answer.lower()
 
 
 # ── Expense workflow ───────────────────────────────────────────────────────────
 
 def test_expense_advisor_returns_policy_based_decision() -> None:
     response = _agent().answer("Can I expense a $1,200 standing desk?", "EMP-001")
-    # expense_advisor runs 4 steps: profile → search → section → compliance
+    # Ergonomic purchases also retrieve the governing remote-work stipend.
     assert tool_names(response) == [
         "lookup_employee_profile", "search_policy_documents",
-        "get_policy_section", "check_policy_compliance",
+        "get_policy_section", "get_policy_section", "check_policy_compliance",
     ]
     assert response.citations  # policy sources were retrieved
+
+
+def test_ergonomic_mouse_uses_company_equipment_rule_not_desk_stipend(monkeypatch) -> None:
+    _force_deterministic_routing(monkeypatch)
+    response = _agent().answer("Can I expense a $150 ergonomic mouse for my home office?", "EMP-001")
+    assert "mouse" in response.answer.lower()
+    assert "company-provided" in response.answer.lower()
+    assert "standing desk" not in response.answer.lower()
 
 
 def test_expense_answer_is_non_empty() -> None:

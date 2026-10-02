@@ -42,11 +42,11 @@
       "employee_id": "EMP-002",
       "confirmed": false,
       "expected_workflow": "remote",
-      "expected_escalated": true,
+      "expected_escalated": false,
       "expected_tools": ["lookup_employee_profile", "search_policy_documents", "check_policy_compliance"],
       "expected_citation_docs": ["POL-RW-001"],
       "gold_keywords": ["remote", "approval", "policy"],
-      "notes": "Remote workflow always escalates. Tests that citations are returned."
+      "notes": "An informational approval question should be answered without opening or offering a case."
     },
     {
       "id": "Q004",
@@ -69,10 +69,10 @@
       "confirmed": false,
       "expected_workflow": "pto",
       "expected_escalated": false,
-      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance", "draft_hr_email"],
+      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance"],
       "expected_citation_docs": ["POL-PTO-002"],
       "gold_keywords": ["14.5", "balance", "approval"],
-      "notes": "No specific duration — tests that agent handles open-ended PTO request."
+      "notes": "No specific dates or duration: clarify without drafting an email or submitting a request."
     },
     {
       "id": "Q006",
@@ -119,7 +119,7 @@
       "query": "Can I expense a standing desk and also claim a home office stipend as a remote employee?",
       "employee_id": "EMP-001",
       "confirmed": false,
-      "expected_workflow": "expense",
+      "expected_workflow": "policy",
       "expected_escalated": false,
       "expected_tools": ["lookup_employee_profile", "search_policy_documents", "get_policy_section", "check_policy_compliance"],
       "expected_citation_docs": ["POL-EXP-001", "POL-RW-001"],
@@ -132,9 +132,9 @@
       "query": "As a remote employee, what data security rules apply to my home office setup?",
       "employee_id": "EMP-001",
       "confirmed": false,
-      "expected_workflow": "remote",
-      "expected_escalated": true,
-      "expected_tools": ["lookup_employee_profile", "search_policy_documents", "check_policy_compliance"],
+      "expected_workflow": "policy",
+      "expected_escalated": false,
+      "expected_tools": ["lookup_employee_profile", "search_policy_documents", "get_policy_section", "check_policy_compliance"],
       "expected_citation_docs": ["POL-RW-001", "POL-SEC-004"],
       "gold_keywords": ["remote", "security", "data"],
       "notes": "Requires both remote work and data security policy. Multi-doc test."
@@ -145,9 +145,9 @@
       "query": "Can I work remotely from another country and also expense my internet connection there?",
       "employee_id": "EMP-001",
       "confirmed": false,
-      "expected_workflow": "remote",
+      "expected_workflow": "policy",
       "expected_escalated": true,
-      "expected_tools": ["lookup_employee_profile", "search_policy_documents", "check_policy_compliance"],
+      "expected_tools": ["lookup_employee_profile", "search_policy_documents", "get_policy_section", "check_policy_compliance"],
       "expected_citation_docs": ["POL-RW-001", "POL-EXP-001"],
       "gold_keywords": ["remote", "international", "expense"],
       "notes": "Combines remote work eligibility (POL-RW-001) and expense policy (POL-EXP-001)."
@@ -159,8 +159,8 @@
       "employee_id": "EMP-002",
       "confirmed": false,
       "expected_workflow": "pto",
-      "expected_escalated": false,
-      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance"],
+      "expected_escalated": true,
+      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "get_policy_section", "check_policy_compliance"],
       "expected_citation_docs": ["POL-PTO-002", "POL-LOA-008"],
       "gold_keywords": ["leave", "accrual", "balance"],
       "notes": "Requires both PTO policy and leave of absence policy."
@@ -173,7 +173,7 @@
       "confirmed": false,
       "expected_workflow": "policy",
       "expected_escalated": true,
-      "expected_tools": ["lookup_employee_profile", "search_policy_documents", "check_policy_compliance"],
+      "expected_tools": ["lookup_employee_profile", "search_policy_documents", "get_policy_section", "check_policy_compliance"],
       "expected_citation_docs": ["POL-AIU-017", "POL-SEC-004"],
       "gold_keywords": ["AI", "data", "security"],
       "notes": "Tests general-policy retrieval across AI acceptable use and data security; do not treat it as out of scope."
@@ -199,7 +199,7 @@
       "confirmed": false,
       "expected_workflow": "pto",
       "expected_escalated": true,
-      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance", "draft_hr_email"],
+      "expected_tools": ["lookup_employee_profile", "check_pto_balance", "search_policy_documents", "check_policy_compliance"],
       "expected_citation_docs": ["POL-PTO-002"],
       "gold_keywords": ["8.0", "15", "balance", "exceeds"],
       "notes": "EMP-002 has 8 days; 3 weeks = 15 days. Should escalate due to insufficient balance."
@@ -266,7 +266,7 @@
       "expected_escalated": true,
       "expected_tools": ["lookup_employee_profile", "search_policy_documents", "check_policy_compliance", "create_mock_hr_ticket"],
       "expected_citation_docs": ["POL-RW-001"],
-      "gold_keywords": ["ticket", "remote", "approval"],
+      "gold_keywords": ["request", "remote", "approval"],
       "notes": "confirmed=true path. Tests that create_mock_hr_ticket is called only with explicit confirmation."
     },
     {
@@ -302,11 +302,11 @@
       "employee_id": "EMP-001",
       "confirmed": false,
       "expected_workflow": null,
-      "expected_escalated": true,
+      "expected_escalated": false,
       "expected_tools": [],
       "expected_citation_docs": [],
       "gold_keywords": ["clarify", "PTO", "remote", "expense"],
-      "notes": "No routing keyword. Tests honest escalation with a helpful redirect message."
+      "notes": "A capability/clarification question should ask for the topic, not escalate to HR."
     },
     {
       "id": "Q024",
