@@ -1,7 +1,7 @@
 """
 HR Policy Ingestion Pipeline
 Supports .md, .html, .txt, and .pdf source documents.
-Chunks each document (heading-aware for md/html, paragraph-based for txt/pdf)
+Chunks each document by headings (and by page for PDFs)
 and embeds them into a local ChromaDB collection.
 """
 
@@ -26,6 +26,7 @@ from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 from src.rag.chunk_ids import stable_chunk_id
 from src.rag.config import EMBEDDING_MODEL, EMBEDDING_REVISION
+from src.rag.sections import HeadingSection, split_numbered_pages
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -68,16 +69,6 @@ DOC_ID_MAP = {
 # ---------------------------------------------------------------------------
 
 @dataclass
-class HeadingSection:
-    """Represents a contiguous block of text under a particular Markdown heading."""
-    doc_id:      str
-    doc_title:   str
-    heading:     str          # e.g. "## 3. PTO Usage > ### 3.1 Requesting Time Off"
-    heading_level: int        # 1 / 2 / 3
-    content:     str          # raw text below the heading
-
-
-@dataclass
 class Chunk:
     """A single embeddable unit with full provenance metadata."""
     chunk_id:    str
@@ -86,6 +77,8 @@ class Chunk:
     section:     str          # breadcrumb heading path
     text:        str          # the chunk text
     snippet:     str          # first 120 chars for quick inspection
+    source_file: str = ""
+    page_number: int | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -229,12 +222,14 @@ def chunk_section(section: HeadingSection,
             section=section.heading,
             text=text,
             snippet=text[:120].replace("\n", " "),
+            source_file=section.source_file,
+            page_number=section.page_number,
         ))
     return result
 
 
 # ---------------------------------------------------------------------------
-# Step 3 – Format-aware parsers: all return plain Markdown-like text
+# Step 3 – Format-aware parsers
 # ---------------------------------------------------------------------------
 
 def _parse_md(path: Path) -> str:
@@ -279,13 +274,9 @@ def _parse_txt(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _parse_pdf(path: Path) -> str:
+def _parse_pdf(path: Path) -> list[str]:
     reader = PdfReader(str(path))
-    pages: list[str] = []
-    for page in reader.pages:
-        text = page.extract_text() or ""
-        pages.append(text.strip())
-    return "\n\n".join(p for p in pages if p)
+    return [(page.extract_text() or "").strip() for page in reader.pages]
 
 
 _PARSERS = {
@@ -314,10 +305,18 @@ def load_and_chunk_policies(policies_dir: Path) -> list[Chunk]:
         fmt    = policy_file.suffix
 
         parser         = _PARSERS[fmt]
-        text           = parser(policy_file)
+        parsed         = parser(policy_file)
         fallback_title = _title_from_stem(stem)
-
-        sections = split_by_headings(text, doc_id, fallback_title=fallback_title)
+        if fmt == ".pdf":
+            sections = split_numbered_pages(parsed, doc_id, fallback_title,
+                                            policy_file.name, pdf=True)
+        elif fmt == ".txt":
+            sections = split_numbered_pages([parsed], doc_id, fallback_title,
+                                            policy_file.name)
+        else:
+            sections = split_by_headings(parsed, doc_id, fallback_title=fallback_title)
+            for section in sections:
+                section.source_file = policy_file.name
         file_chunks: list[Chunk] = []
         for section_index, section in enumerate(sections):
             file_chunks.extend(chunk_section(section, section_index=section_index))
@@ -375,6 +374,8 @@ def build_chroma_collection(chunks: list[Chunk],
                     "doc_title": c.doc_title,
                     "section":   c.section,
                     "snippet":   c.snippet,
+                    "source_file": c.source_file,
+                    **({"page_number": c.page_number} if c.page_number is not None else {}),
                 }
                 for c in batch
             ],

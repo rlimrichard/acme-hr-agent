@@ -207,6 +207,8 @@ def search_policy_documents(
                 "section":   c["section"],
                 "text":      c["text"],
                 "snippet":   c.get("snippet", c["text"][:180]),
+                "source_file": c.get("source_file", ""),
+                "page_number": c.get("page_number"),
                 "score":     c.get("score", round(1.0 - c.get("distance", 0), 4)),
             }
             for c in chunks
@@ -233,6 +235,8 @@ def get_policy_section(doc_id: str, section: str) -> dict[str, Any]:
         "doc_id":    best["doc_id"],
         "doc_title": best["doc_title"],
         "section":   best["section"],
+        "source_file": best.get("source_file", ""),
+        "page_number": best.get("page_number"),
         "text":      section_text,
         "found":     True,
     }

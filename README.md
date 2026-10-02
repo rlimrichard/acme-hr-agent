@@ -129,7 +129,7 @@ Expected output:
 ```
 HR Policy RAG Ingestion Pipeline
 Scanning: data/policies
-  [POL-AIU-017] ai_acceptable_use_policy.pdf: 1 sections → 31 chunks
+  [POL-AIU-017] ai_acceptable_use_policy.pdf: <page-aware sections> → <chunks>
   ...
 Total chunks generated: <count depends on the checked-in corpus>
 Embedding <count> chunks …
@@ -143,6 +143,12 @@ chunk size/overlap are fixed, and chunk IDs are derived from document ID,
 section/chunk position, and text. Thus, an unchanged corpus produces the same
 chunk texts and IDs across ingestion runs. Ingestion drops and recreates the
 collection; the first run takes ~30 seconds to load and encode the model.
+Markdown and HTML use heading breadcrumbs; TXT and PDF use their numbered
+section headings. PDF chunks never cross pages, so each has an exact page number.
+Every indexed chunk retains the source filename, document ID/title, section path,
+and an excerpt for source-backed citations. Rebuild the index after changing
+the corpus or ingestion logic; deploying code alone does not update a persisted
+`chroma_db/` directory.
 
 ---
 

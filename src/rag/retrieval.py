@@ -88,6 +88,8 @@ def retrieve_chunks(
             - doc_title  : human-readable document title
             - section    : breadcrumb heading path within the document
             - snippet    : first 120 chars of the chunk (for logging)
+            - source_file: original policy filename
+            - page_number: PDF page number, when applicable
             - distance   : cosine distance (lower = more similar)
     """
     model      = _get_model()
@@ -116,6 +118,8 @@ def retrieve_chunks(
             "doc_title": meta["doc_title"],
             "section":   meta["section"],
             "snippet":   meta["snippet"],
+            "source_file": meta.get("source_file", ""),
+            "page_number": meta.get("page_number"),
             "distance":  round(dist, 4),
         })
 

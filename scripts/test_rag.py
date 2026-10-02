@@ -102,7 +102,7 @@ def test_coverage(col) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# 2. Metadata quality: section and doc_title populated
+# 2. Metadata quality: citation provenance for every format
 # ---------------------------------------------------------------------------
 
 def test_metadata(col) -> bool:
@@ -121,11 +121,26 @@ def test_metadata(col) -> bool:
                              not bad_title,
                              f"{len(bad_title)}/{len(items)} chunks have Unknown title"))
 
-        if fmt in ("md", "html"):
-            no_section = [m for m, _ in items if not m["section"].strip()]
-            results.append(check(f"{doc_id} ({fmt}): section breadcrumb present",
-                                 not no_section,
-                                 f"{len(no_section)}/{len(items)} chunks missing section"))
+        no_section = [m for m, _ in items if not m["section"].strip()]
+        results.append(check(f"{doc_id} ({fmt}): section breadcrumb present",
+                             not no_section,
+                             f"{len(no_section)}/{len(items)} chunks missing section"))
+
+        no_file = [m for m, _ in items if not m.get("source_file", "").endswith(f".{fmt}")]
+        results.append(check(f"{doc_id} ({fmt}): source filename present",
+                             not no_file,
+                             f"{len(no_file)}/{len(items)} chunks missing source file"))
+
+        if fmt == "pdf":
+            no_page = [m for m, _ in items if not isinstance(m.get("page_number"), int)
+                       or f"(p. {m.get('page_number')})" not in m["section"]]
+            results.append(check(f"{doc_id} ({fmt}): page citation present",
+                                 not no_page,
+                                 f"{len(no_page)}/{len(items)} chunks missing page"))
+        elif fmt == "txt":
+            numbered = [m for m, _ in items if m["section"] != m["doc_title"]]
+            results.append(check(f"{doc_id} ({fmt}): numbered sections parsed",
+                                 bool(numbered), f"{len(numbered)}/{len(items)} chunks"))
 
         no_snippet = [m for m, _ in items if not m["snippet"].strip()]
         results.append(check(f"{doc_id} ({fmt}): snippet populated",
