@@ -169,7 +169,13 @@ def test_chat_audit_persists_confidence_without_exposing_it(monkeypatch, tmp_pat
             return orchestrator.AgentResponse(answer="I can help with PTO.")
 
     monkeypatch.setattr(app_main, "HRAgent", FakeAgent)
-    public = app_main.chat(app_main.ChatRequest(query="What can you do?", employee_id="EMP-002"))
+    monkeypatch.setattr(app_main.portal, "USERS_FILE", tmp_path / "users.json")
+    app_main.portal.USERS_FILE.write_text(json.dumps({"EMP-002": app_main.portal.password_hash("acme123")}), encoding="utf-8")
+    client = TestClient(app_main.app)
+    assert client.post("/login", data={"employee_id": "EMP-002", "password": "acme123"}).status_code == 200
+    response = client.post("/chat", json={"query": "What can you do?", "employee_id": "EMP-002"})
+    assert response.status_code == 200
+    public = response.json()
     record = json.loads(next(tmp_path.glob("*.jsonl")).read_text(encoding="utf-8"))
     assert record["confidence"]["score"] == 82.5
     assert "confidence" not in public

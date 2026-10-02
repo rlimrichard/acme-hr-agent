@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field
 
 from src.agent.orchestrator import HRAgent, MCPClient
 from src.agent.reasoner import assess_answer_confidence
+from src.app import portal
 
 _mcp_proc: subprocess.Popen | None = None
 
@@ -56,6 +57,8 @@ if not ADMIN_PASSWORD:
 _ADMIN_COOKIE_NAME = "admin_session"
 _ADMIN_SESSION_MAX_AGE = 60 * 60 * 8  # 8 hours
 _admin_serializer = URLSafeTimedSerializer(_SESSION_SECRET, salt="admin-session")
+_employee_serializer = URLSafeTimedSerializer(_SESSION_SECRET, salt="employee-session")
+_EMPLOYEE_COOKIE = "employee_session"
 
 
 def _is_admin_authenticated(request: Request) -> bool:
@@ -250,6 +253,106 @@ class ChatRequest(BaseModel):
     confirmed: bool = False
 
 
+class ReviewRequest(BaseModel):
+    decision: str
+    message: str = Field(min_length=1, max_length=4000)
+
+
+def _signed_in_employee(request: Request) -> dict[str, Any] | None:
+    token = request.cookies.get(_EMPLOYEE_COOKIE)
+    if not token:
+        return None
+    try:
+        employee_id = _employee_serializer.loads(token, max_age=60 * 60 * 12).get("employee_id")
+    except (BadSignature, SignatureExpired, AttributeError):
+        return None
+    return next((person for person in _employee_records() if person["employee_id"] == employee_id), None)
+
+
+def require_employee(request: Request) -> dict[str, Any]:
+    person = _signed_in_employee(request)
+    if not person:
+        raise HTTPException(status_code=401, detail="Please sign in")
+    return person
+
+
+def _same_origin(request: Request) -> None:
+    origin = request.headers.get("origin")
+    if origin:
+        from urllib.parse import urlsplit
+        origin_host = urlsplit(origin).netloc
+        host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+        if origin_host != host:
+            raise HTTPException(status_code=403, detail="Invalid request origin")
+
+
+@app.get("/login")
+def employee_login_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "employee-login.html")
+
+
+@app.post("/login")
+def employee_login(request: Request, employee_id: str = Form(...), password: str = Form(...)) -> Response:
+    _same_origin(request)
+    employee_id = employee_id.strip().upper()
+    if not portal.authenticate(employee_id, password, _EMPLOYEES_FILE):
+        return JSONResponse(status_code=401, content={"ok": False, "detail": "Invalid employee ID or password"})
+    response = JSONResponse({"ok": True})
+    response.set_cookie(_EMPLOYEE_COOKIE, _employee_serializer.dumps({"employee_id": employee_id}),
+                        max_age=60 * 60 * 12, httponly=True, samesite="lax",
+                        secure=(request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"))
+    return response
+
+
+@app.post("/logout")
+def employee_logout(request: Request) -> Response:
+    _same_origin(request)
+    response = RedirectResponse("/login", status_code=303)
+    response.delete_cookie(_EMPLOYEE_COOKIE)
+    return response
+
+
+@app.get("/portal/me")
+def portal_me(person: dict[str, Any] = Depends(require_employee)) -> dict[str, Any]:
+    records = _employee_records()
+    return {"employee_id": person["employee_id"], "name": person["name"],
+            "department": person["department"], "is_hr": person["department"] == "People Operations",
+            "is_manager": any(item.get("manager_id") == person["employee_id"] for item in records)}
+
+
+@app.get("/portal/tickets")
+def portal_tickets(person: dict[str, Any] = Depends(require_employee)) -> dict[str, Any]:
+    tickets = portal.all_tickets(_EMPLOYEES_FILE)
+    own = [item for item in tickets if item.get("employee_id") == person["employee_id"]]
+    queue = [item for item in tickets if item.get("status") in ("created", "pending")
+             and portal.can_review(person, item, _EMPLOYEES_FILE)]
+    return {"my_pending": [item for item in own if item.get("status") in ("created", "pending")],
+            "my_closed": [item for item in own if item.get("status") in ("approved", "denied")],
+            "hr_queue": [item for item in queue if item.get("ticket_type") != "pto_request"],
+            "manager_queue": [item for item in queue if item.get("ticket_type") == "pto_request"]}
+
+
+@app.post("/portal/tickets/{ticket_id}/review")
+def portal_review(ticket_id: str, body: ReviewRequest, request: Request,
+                  person: dict[str, Any] = Depends(require_employee)) -> dict[str, Any]:
+    _same_origin(request)
+    try:
+        return portal.review_ticket(ticket_id, person, body.decision, body.message, _EMPLOYEES_FILE)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.get("/portal")
+def portal_page(request: Request) -> Response:
+    if not _signed_in_employee(request):
+        return RedirectResponse("/login", status_code=303)
+    return FileResponse(STATIC_DIR / "portal.html")
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     base_url = os.getenv("MCP_SERVER_URL", "http://127.0.0.1:8001").rstrip("/")
@@ -270,7 +373,10 @@ def health() -> dict[str, Any]:
 
 
 @app.post("/chat")
-def chat(request: ChatRequest) -> dict[str, Any]:
+def chat(request: ChatRequest, http_request: Request, person: dict[str, Any] = Depends(require_employee)) -> dict[str, Any]:
+    _same_origin(http_request)
+    if request.employee_id != person["employee_id"]:
+        raise HTTPException(status_code=403, detail="Employee ID does not match signed-in account")
     try:
         result = HRAgent(MCPClient()).answer(request.query, request.employee_id, request.confirmed).as_dict()
         _log_chat(request.employee_id, request.query, result)
@@ -283,7 +389,7 @@ def chat(request: ChatRequest) -> dict[str, Any]:
 
 
 @app.get("/employees")
-def employee_options() -> dict[str, list[dict[str, str]]]:
+def employee_options(_person: dict[str, Any] = Depends(require_employee)) -> dict[str, list[dict[str, str]]]:
     """Minimal employee directory for the home-page account selector."""
     employees = [
         {"employee_id": employee["employee_id"], "name": employee["name"]}
@@ -461,5 +567,7 @@ def get_log_entries(date: str, _admin: None = Depends(require_admin_api)) -> dic
     return {"date": date, "entries": list(reversed(entries))}
 
 @app.get("/")
-def index() -> FileResponse:
+def index(request: Request) -> Response:
+    if not _signed_in_employee(request):
+        return RedirectResponse("/login", status_code=303)
     return FileResponse(STATIC_DIR / "index.html")

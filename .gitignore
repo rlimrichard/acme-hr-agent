@@ -28,6 +28,8 @@ logs/
 
 # Runtime ticket store (populated at runtime, not committed)
 data/tickets.jsonl
+data/ticket_reviews.jsonl
+data/portal_users.json
 
 # Claude
 .claude/

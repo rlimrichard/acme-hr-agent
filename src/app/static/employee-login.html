@@ -1,0 +1,5 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Employee sign in · Acme HR</title><link rel="stylesheet" href="/static/style.css"></head>
+<body><main class="portal-shell"><section class="portal-card login-card"><h1>Sign in to Acme HR</h1><p>Use your employee ID and password to see your requests and review queue.</p><form id="login-form"><label>Employee ID<input name="employee_id" placeholder="EMP-001" required autocomplete="username"></label><label>Password<input name="password" type="password" required autocomplete="current-password"></label><button type="submit">Sign in</button><p id="login-error" role="alert"></p></form></section></main><script>
+document.getElementById('login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; const response = await fetch('/login', {method:'POST', body:new FormData(form)}); if (response.ok) location.href='/'; else document.getElementById('login-error').textContent='Invalid employee ID or password.'; });
+</script></body></html>

@@ -36,7 +36,7 @@ const intro = document.getElementById('intro');
 const composerEl = document.getElementById('composer');
 const queryInput = document.getElementById('query-input');
 const sendBtn = document.getElementById('send-btn');
-const employeeIdInput = document.getElementById('employee-id');
+let signedInEmployeeId = '';
 const healthDot = document.getElementById('health-dot');
 const healthLabel = document.getElementById('health-label');
 
@@ -48,28 +48,14 @@ const EMPLOYEE_ID_PATTERN = /^EMP-\d{3}$/;
 
 async function loadEmployeeOptions() {
   try {
-    const res = await fetch('/employees');
-    if (!res.ok) throw new Error('employee directory unavailable');
+    const res = await fetch('/portal/me');
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    if (!res.ok) throw new Error('account unavailable');
     const data = await res.json();
-    const employees = data.employees || [];
-    employeeIdInput.textContent = '';
-    employees.forEach((employee) => {
-      const option = document.createElement('option');
-      option.value = employee.employee_id;
-      option.textContent = `${employee.employee_id} — ${employee.name}`;
-      employeeIdInput.appendChild(option);
-    });
-    employeeIdInput.value = employees.some((employee) => employee.employee_id === 'EMP-002')
-      ? 'EMP-002'
-      : (employees[0]?.employee_id || '');
-    employeeIdInput.disabled = employees.length === 0;
+    signedInEmployeeId = data.employee_id;
+    document.getElementById('employee-label').textContent = `${data.name} (${data.employee_id})`;
   } catch {
-    employeeIdInput.textContent = '';
-    const option = document.createElement('option');
-    option.textContent = 'Employee directory unavailable';
-    option.value = '';
-    employeeIdInput.appendChild(option);
-    employeeIdInput.disabled = true;
+    document.getElementById('employee-label').textContent = 'Account unavailable';
   }
 }
 
@@ -186,7 +172,7 @@ function addErrorMessage(message) {
 }
 
 async function sendQuery(query, employeeIdOverride, confirmed = false) {
-  const employeeId = (employeeIdOverride || employeeIdInput.value.trim()).toUpperCase();
+  const employeeId = (employeeIdOverride || signedInEmployeeId).toUpperCase();
 
   if (!EMPLOYEE_ID_PATTERN.test(employeeId)) {
     addErrorMessage('Employee ID must look like EMP-001 (EMP- followed by 3 digits).');
@@ -228,6 +214,7 @@ async function sendQuery(query, employeeIdOverride, confirmed = false) {
       return;
     }
     if (!res.ok) {
+      if (res.status === 401) { window.location.href = '/login'; return; }
       addErrorMessage(`Request failed (${res.status}). Check the server logs.`);
       return;
     }

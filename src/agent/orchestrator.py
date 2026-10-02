@@ -134,6 +134,16 @@ class HRAgent:
         return any(re.search(p, lowered) for p in cls._EMAIL_DRAFT_PATTERNS)
 
     @staticmethod
+    def _is_pto_submission(query: str) -> bool:
+        """A request to submit, not a question about policy or eligibility."""
+        lowered = query.lower()
+        return bool(re.search(
+            r"\b(?:submit|file|send)\s+(?:a\s+|my\s+)?(?:pto|vacation|leave|time[ -]off)\s*request\b|"
+            r"\b(?:i want to|i would like to|i'd like to)\s+request\s+(?:pto|vacation|leave|time[ -]off)\b",
+            lowered,
+        ))
+
+    @staticmethod
     def _is_capability_question(query: str) -> bool:
         """Recognize general introductions without swallowing a specific HR question."""
         words = re.sub(r"[^a-z0-9]+", " ", query.lower()).strip()
@@ -188,7 +198,7 @@ class HRAgent:
         llm_kind = classify_workflow(query)
         kind = llm_kind or self._kind(query)
         if kind == "pto":
-            response = self._pto(query, employee_id)
+            response = self._pto(query, employee_id, confirmed)
         elif kind == "remote":
             response = self._remote(query, employee_id, confirmed)
         elif kind == "expense":
@@ -214,7 +224,7 @@ class HRAgent:
         }
         return response
 
-    def _pto(self, query: str, employee_id: str) -> AgentResponse:
+    def _pto(self, query: str, employee_id: str, confirmed: bool = False) -> AgentResponse:
         response = AgentResponse(answer="")
         profile = self._invoke(response, "lookup_employee_profile", employee_id=employee_id)
         balance = self._invoke(response, "check_pto_balance", employee_id=employee_id)
@@ -236,7 +246,8 @@ class HRAgent:
         if requested is not None:
             amount_text += f"; the request appears to require about {requested:g} days, so it is {'within' if enough else 'above'} that balance"
 
-        if self._should_draft_pto_email(query):
+        submit_request = self._is_pto_submission(query)
+        if self._should_draft_pto_email(query) and not submit_request:
             email = self._invoke(response, "draft_hr_email", employee_id=employee_id,
                                  email_type="pto_request",
                                  details=f"I would like to request PTO: {query}. Please let me know whether coverage and timing permit approval.")
@@ -279,6 +290,14 @@ class HRAgent:
             compliance=compliance,
             fallback=deterministic_answer,
         ) + email_block
+        if submit_request and profile.get("found", False) and enough:
+            if confirmed:
+                ticket = self._invoke(response, "create_mock_hr_ticket", employee_id=employee_id,
+                                      ticket_type="pto_request", subject="PTO request", description=query)
+                response.answer = f"Your PTO request {ticket['ticket_id']} is in your manager's review queue. You can track it under Requests."
+            else:
+                response.answer += " Would you like me to submit this PTO request to your manager?"
+                response.requires_confirmation = True
         if not profile.get("found", False):
             response.escalated = True
             response.escalation_message = "Your employee record could not be found. Please contact HR to verify your profile."

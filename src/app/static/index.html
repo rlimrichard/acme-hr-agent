@@ -15,14 +15,13 @@
       </div>
       <nav class="topbar__nav" aria-label="Main navigation">
         <a class="nav-link nav-link--active" href="/" aria-current="page">Chat</a>
+        <a class="nav-link" href="/portal">Requests</a>
         <a class="nav-link" href="/hr-docs">HR Documents</a>
         <a class="nav-link" href="/admin">Admin</a>
       </nav>
       <div class="topbar__session">
-        <label for="employee-id">Employee ID</label>
-        <select id="employee-id" aria-label="Select employee" disabled>
-          <option value="">Loading employees…</option>
-        </select>
+        <span id="employee-label">Loading account…</span>
+        <form action="/logout" method="post"><button type="submit">Sign out</button></form>
       </div>
       <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle light/dark mode">
         <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
