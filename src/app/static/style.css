@@ -607,6 +607,21 @@ body {
   color: var(--ink-soft);
 }
 
+.regression-search {
+  width: min(100%, 420px);
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+}
+.regression-table td:nth-child(2) { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; }
+.regression-table td:last-child { white-space: nowrap; }
+.regression-table tr[hidden] { display: none; }
+.regression-detail { margin-top: 6px; color: var(--accent); }
+.regression-detail summary { cursor: pointer; }
+
 /* thinking indicator -- appears only while waiting on a real response */
 .thinking-dots { display: inline-flex; gap: 4px; padding: 3px 0; }
 .thinking-dots span {

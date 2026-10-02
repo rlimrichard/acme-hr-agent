@@ -303,10 +303,64 @@ function buildRegressionCard(result) {
   const summary = document.createElement('div');
   summary.className = 'log-card__answer';
   summary.textContent = `${result.passed || 0} passed · ${result.failed || 0} failed · ` +
-    `${result.errors || 0} errors · ${result.total || 0} total · ${result.duration_seconds || 0}s`;
+    `${result.errors || 0} errors · ${result.skipped || 0} skipped · ` +
+    `${result.total || 0} total · ${result.duration_seconds || 0}s`;
   card.appendChild(summary);
+  const cases = Array.isArray(result.cases) ? result.cases : [];
+  if (cases.length) {
+    const search = document.createElement('input');
+    search.className = 'regression-search';
+    search.type = 'search';
+    search.placeholder = 'Filter test cases…';
+    search.setAttribute('aria-label', 'Filter regression test cases');
+    card.appendChild(search);
+
+    const table = document.createElement('table');
+    table.className = 'database-table regression-table';
+    const head = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    ['Result', 'Test case / input', 'Duration'].forEach((label) => {
+      const cell = document.createElement('th'); cell.textContent = label; headRow.appendChild(cell);
+    });
+    head.appendChild(headRow); table.appendChild(head);
+    const body = document.createElement('tbody');
+    cases.forEach((testCase) => {
+      const row = document.createElement('tr');
+      row.dataset.search = `${testCase.name || ''} ${testCase.suite || ''} ${testCase.status || ''}`.toLowerCase();
+      const status = document.createElement('td');
+      status.appendChild(makeBadge(
+        testCase.status === 'passed' ? 'log-card__badge--tools' : 'log-card__badge--escalated',
+        testCase.status || 'unknown',
+      ));
+      const name = document.createElement('td');
+      name.textContent = testCase.name || 'Unnamed test';
+      if (testCase.detail) {
+        const details = document.createElement('details');
+        details.className = 'regression-detail';
+        const detailSummary = document.createElement('summary');
+        detailSummary.textContent = 'Failure details';
+        const pre = document.createElement('pre');
+        pre.className = 'audit-preview';
+        pre.textContent = testCase.detail;
+        details.append(detailSummary, pre); name.appendChild(details);
+      }
+      const duration = document.createElement('td');
+      duration.textContent = `${Number(testCase.duration_seconds || 0).toFixed(3)}s`;
+      row.append(status, name, duration); body.appendChild(row);
+    });
+    table.appendChild(body); card.appendChild(table);
+    search.addEventListener('input', () => {
+      const query = search.value.trim().toLowerCase();
+      body.querySelectorAll('tr').forEach((row) => { row.hidden = !row.dataset.search.includes(query); });
+    });
+  } else {
+    const note = document.createElement('div');
+    note.className = 'log-card__answer';
+    note.textContent = 'Per-test detail was not captured for this run. It will appear after the next deployment regression run.';
+    card.appendChild(note);
+  }
   appendPromptPreview(card, 'Test command', result.command);
-  appendPromptPreview(card, 'Test output', result.output);
+  appendPromptPreview(card, 'Raw pytest output', result.output);
   return card;
 }
 
@@ -321,7 +375,7 @@ async function loadRegressionTests() {
       setStatus(regressionTestResults, 'No regression test run has been recorded yet.');
       return;
     }
-    regressionTestCount.textContent = 'Latest recorded run';
+    regressionTestCount.textContent = `Latest recorded run · ${(result.cases || []).length} detailed cases`;
     regressionTestResults.appendChild(buildRegressionCard(result));
   } catch { setStatus(regressionTestResults, 'Failed to load regression test results.'); }
 }
