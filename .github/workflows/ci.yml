@@ -98,7 +98,9 @@ jobs:
             sudo systemctl restart acme-hr-agent
             for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
               sleep 5
-              curl -sf http://127.0.0.1:8000/health && break
+              if .venv311/bin/python scripts/check_health.py http://127.0.0.1:8000/health; then
+                break
+              fi
               echo "Waiting for service... attempt $i"
             done
-            curl -sf http://127.0.0.1:8000/health
+            .venv311/bin/python scripts/check_health.py http://127.0.0.1:8000/health

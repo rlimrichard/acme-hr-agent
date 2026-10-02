@@ -30,9 +30,15 @@ echo "--- regression tests ---"
 .venv311/bin/python scripts/run_regression_tests.py
 echo "--- restart service ---"
 sudo systemctl restart acme-hr-agent
-sleep 5
 sudo systemctl is-active --quiet acme-hr-agent && echo "Service is running." || { echo "Service failed!"; sudo systemctl status acme-hr-agent --no-pager; exit 1; }
 echo "--- health check ---"
-curl -sf http://127.0.0.1:8000/health | .venv311/bin/python -m json.tool
+for i in {1..12}; do
+  sleep 5
+  if .venv311/bin/python scripts/check_health.py http://127.0.0.1:8000/health; then
+    break
+  fi
+  echo "Waiting for service... attempt $i"
+done
+.venv311/bin/python scripts/check_health.py http://127.0.0.1:8000/health
 echo "==> Deploy complete."
 REMOTE

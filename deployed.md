@@ -70,7 +70,7 @@ Every push to `main` that passes CI tests deploys automatically via GitHub Actio
 2. `git pull --ff-only` in `/opt/acme-hr-agent/acme-hr-agent/`
 3. `rsync` syncs source files to the service working directory, preserving the live `chroma_db/`, `data/`, and logs
 4. `.venv311/bin/python -m pip install -r requirements.txt` and the deterministic regression suite run
-5. `sudo systemctl restart acme-hr-agent`; the health check confirms app and MCP discovery
+5. `sudo systemctl restart acme-hr-agent`; `scripts/check_health.py` rejects HTTP-200 responses with degraded status, disconnected MCP, missing index, or fewer than eight discovered tools
 
 **Required secret:** Add the OCI SSH private key as `DEPLOY_SSH_KEY` under *GitHub → Settings → Secrets and variables → Actions*.
 
@@ -80,7 +80,7 @@ Every push to `main` that passes CI tests deploys automatically via GitHub Actio
 DEPLOY_SSH_KEY=/path/to/ssh_key ./scripts/deploy.sh
 ```
 
-The manual script follows the same checkout → sync → dependency install → regression → restart sequence as CI. A `git pull` alone does **not** update the service working directory. If policy files, chunking rules, or the pinned embedding revision change, rebuild the persisted index explicitly from `/opt/acme-hr-agent` with `.venv311/bin/python -m src.rag.ingest` before restart. Back up `chroma_db/` first; ingestion replaces the collection.
+The manual script follows the same checkout → sync → dependency install → regression → restart → JSON health gate sequence as CI. A `git pull` alone does **not** update the service working directory. If policy files, chunking rules, or the pinned embedding revision change, rebuild the persisted index explicitly from `/opt/acme-hr-agent` with `.venv311/bin/python -m src.rag.ingest` before restart. Back up `chroma_db/` first; ingestion replaces the collection.
 
 ## Latency (warm)
 

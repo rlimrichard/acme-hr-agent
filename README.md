@@ -23,6 +23,7 @@ acme-hr-agent/
 │   ├── test_rag.py          # Six RAG diagnostics, including stable IDs and multi-doc retrieval
 │   ├── test_mcp.py          # MCP tool smoke tests (25 checks)
 │   ├── test_app_start.py    # Starts the app and verifies health plus MCP discovery
+│   ├── check_health.py      # Post-deploy JSON health gate (app, MCP, index)
 │   ├── run_regression_tests.py # Deterministic workflow regression report for /admin
 │   ├── deploy.sh            # Manual OCI deployment path
 │   └── convert_policies.py  # One-off: converts .md policies to .html/.txt/.pdf
@@ -319,7 +320,7 @@ GitHub Actions runs on every push and pull request to `main`. Passing tests on `
 5. MCP tool smoke tests (`python scripts/test_mcp.py`)
 6. Run unit and protocol tests (`pytest tests/ -v`)
 7. Start the real ASGI app and verify `/health` and MCP discovery (`python scripts/test_app_start.py`)
-8. *(on pass)* SSH into `hrapp.elcaro.io` → `git pull` → rsync → install dependencies → regression tests → `systemctl restart` → health check
+8. *(on pass)* SSH into `hrapp.elcaro.io` → `git pull` → rsync → install dependencies → regression tests → `systemctl restart` → JSON health gate (`status=ok`, MCP connected, indexed documents, eight tools)
 
 **Pull requests** run every test step, including app startup and MCP discovery; they never deploy.
 
