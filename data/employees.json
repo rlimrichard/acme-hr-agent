@@ -48,16 +48,7 @@
       },
       "annual_salary_usd": 98000,
       "years_of_service": 6.2,
-      "pending_pto_requests": [
-        {
-          "request_id": "PTO-REQ-0041",
-          "start_date": "2025-10-06",
-          "end_date": "2025-10-10",
-          "days_requested": 5,
-          "status": "pending",
-          "reason": "Family vacation"
-        }
-      ]
+      "pending_pto_requests": []
     },
     {
       "employee_id": "EMP-003",

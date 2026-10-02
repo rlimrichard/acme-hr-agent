@@ -5,7 +5,9 @@ Run:
     python scripts/test_mcp.py
 """
 import sys
+import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -19,6 +21,7 @@ from src.mcp.server import (
     lookup_employee_profile,
     search_policy_documents,
 )
+import src.mcp.server as mcp_server
 
 PASS = "\033[92m PASS\033[0m"
 FAIL = "\033[91m FAIL\033[0m"
@@ -52,7 +55,7 @@ def test_employee_tools() -> bool:
     results.append(check("EMP-002 PTO found", pto["found"] is True))
     results.append(check("EMP-002 PTO balance correct", pto["pto_balance_days"] == 8.0,
                          str(pto.get("pto_balance_days"))))
-    results.append(check("EMP-002 has pending PTO request", len(pto["pending_pto_requests"]) == 1))
+    results.append(check("EMP-002 starts with no pending PTO requests", len(pto["pending_pto_requests"]) == 0))
 
     # lookup_benefits_status
     ben = lookup_benefits_status("EMP-001")
@@ -71,22 +74,24 @@ def test_employee_tools() -> bool:
 def test_ticket_tool() -> bool:
     print("\n=== 2. Ticket Creation Tool ===")
     results = []
+    with tempfile.TemporaryDirectory() as directory, \
+            patch.object(mcp_server, "_TICKETS_FILE", Path(directory) / "tickets.jsonl"), \
+            patch.object(mcp_server, "_tickets", {}):
+        tkt = create_mock_hr_ticket(
+            "EMP-001", "pto_request",
+            "Holiday leave request", "Requesting 3 days off in December.",
+            "2025-12-22", "2025-12-24",
+        )
+        results.append(check("ticket_id format", tkt["ticket_id"].startswith("TKT-"),
+                             tkt.get("ticket_id")))
+        results.append(check("status = created", tkt["status"] == "created"))
+        results.append(check("assigned to pto-team", tkt["assigned_to"] == "pto-team@acmecorp.com"))
+        results.append(check("created_at present", bool(tkt.get("created_at"))))
 
-    tkt = create_mock_hr_ticket(
-        "EMP-001", "pto_request",
-        "Holiday leave request", "Requesting 3 days off in December.",
-        "2025-12-22", "2025-12-24",
-    )
-    results.append(check("ticket_id format", tkt["ticket_id"].startswith("TKT-"),
-                         tkt.get("ticket_id")))
-    results.append(check("status = created", tkt["status"] == "created"))
-    results.append(check("assigned to pto-team", tkt["assigned_to"] == "pto-team@acmecorp.com"))
-    results.append(check("created_at present", bool(tkt.get("created_at"))))
-
-    # Different ticket type
-    tkt2 = create_mock_hr_ticket("EMP-002", "benefits_change", "Update dental", "Add vision plan.")
-    results.append(check("benefits_change assigned correctly",
-                         tkt2["assigned_to"] == "benefits@acmecorp.com"))
+        # Different ticket type
+        tkt2 = create_mock_hr_ticket("EMP-002", "benefits_change", "Update dental", "Add vision plan.")
+        results.append(check("benefits_change assigned correctly",
+                             tkt2["assigned_to"] == "benefits@acmecorp.com"))
 
     return all(results)
 

@@ -9,6 +9,7 @@ from src.app import main as app_main
 from src.agent.orchestrator import HRAgent
 from src.agent.reasoner import assess_answer_confidence, build_confidence_prompt
 from src.mcp.server import _prefer_exact_section_matches, app
+import src.mcp.server as mcp_server
 
 
 class LocalMCPClient:
@@ -336,13 +337,16 @@ def test_remote_retrieval_leads_with_employee_question() -> None:
     assert search["args"]["query"].startswith(query)
 
 
-def test_remote_work_ticket_created_when_confirmed() -> None:
-    # With confirmed=True, ticket should be created
+def test_remote_work_ticket_created_when_confirmed(monkeypatch, tmp_path) -> None:
+    # Exercise the real tool without writing a ticket into the deployed app.
+    monkeypatch.setattr(mcp_server, "_TICKETS_FILE", tmp_path / "tickets.jsonl")
+    monkeypatch.setattr(mcp_server, "_tickets", {})
     response = _agent().answer("Can I work from Spain for 6 weeks?", "EMP-001", confirmed=True)
     assert response.requires_confirmation is False
     assert "create_mock_hr_ticket" in tool_names(response)
     assert "Your HR review request has been created:" in response.answer
     assert "People Operations will review the overseas work arrangement." in response.answer
+    assert len((tmp_path / "tickets.jsonl").read_text(encoding="utf-8").splitlines()) == 1
 
 
 def test_remote_work_always_escalated() -> None:
