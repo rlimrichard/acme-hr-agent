@@ -7,7 +7,6 @@ and embeds them into a local ChromaDB collection.
 
 import re
 import sys
-import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -25,6 +24,8 @@ from bs4 import BeautifulSoup
 from chromadb.config import Settings
 from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
+from src.rag.chunk_ids import stable_chunk_id
+from src.rag.config import EMBEDDING_MODEL, EMBEDDING_REVISION
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -33,8 +34,6 @@ from sentence_transformers import SentenceTransformer
 POLICIES_DIR = Path(__file__).parent.parent.parent / "data" / "policies"
 CHROMA_DIR   = Path(__file__).parent.parent.parent / "chroma_db"
 COLLECTION_NAME = "hr_policies"
-
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 # Recursive splitter parameters
 CHUNK_SIZE    = 512   # characters
@@ -210,7 +209,8 @@ def _split_text(text: str, size: int, overlap: int,
 
 def chunk_section(section: HeadingSection,
                   chunk_size: int = CHUNK_SIZE,
-                  overlap: int = CHUNK_OVERLAP) -> list[Chunk]:
+                  overlap: int = CHUNK_OVERLAP,
+                  section_index: int = 0) -> list[Chunk]:
     """Convert a HeadingSection into one or more Chunk objects."""
     raw_chunks = _split_text(section.content, chunk_size, overlap, SEPARATORS)
     # If section has no body (e.g. a heading-only line), emit one minimal chunk
@@ -218,12 +218,12 @@ def chunk_section(section: HeadingSection,
         raw_chunks = [section.heading]
 
     result: list[Chunk] = []
-    for text in raw_chunks:
+    for chunk_index, text in enumerate(raw_chunks):
         text = text.strip()
         if not text:
             continue
         result.append(Chunk(
-            chunk_id=str(uuid.uuid4()),
+            chunk_id=stable_chunk_id(section.doc_id, section_index, chunk_index, text),
             doc_id=section.doc_id,
             doc_title=section.doc_title,
             section=section.heading,
@@ -319,8 +319,8 @@ def load_and_chunk_policies(policies_dir: Path) -> list[Chunk]:
 
         sections = split_by_headings(text, doc_id, fallback_title=fallback_title)
         file_chunks: list[Chunk] = []
-        for section in sections:
-            file_chunks.extend(chunk_section(section))
+        for section_index, section in enumerate(sections):
+            file_chunks.extend(chunk_section(section, section_index=section_index))
 
         print(f"  [{doc_id}] {policy_file.name} ({fmt}): "
               f"{len(sections)} sections → {len(file_chunks)} chunks")
@@ -337,7 +337,7 @@ def build_chroma_collection(chunks: list[Chunk],
                              chroma_dir: Path,
                              collection_name: str) -> chromadb.Collection:
     print(f"\nLoading embedding model: {EMBEDDING_MODEL} …")
-    model = SentenceTransformer(EMBEDDING_MODEL)
+    model = SentenceTransformer(EMBEDDING_MODEL, revision=EMBEDDING_REVISION)
 
     client = chromadb.PersistentClient(
         path=str(chroma_dir),

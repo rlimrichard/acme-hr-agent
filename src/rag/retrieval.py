@@ -26,6 +26,7 @@ except ImportError:
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
+from src.rag.config import EMBEDDING_MODEL, EMBEDDING_REVISION
 
 # ---------------------------------------------------------------------------
 # Configuration – must match ingest.py
@@ -33,7 +34,6 @@ from sentence_transformers import SentenceTransformer
 
 CHROMA_DIR      = Path(__file__).parent.parent.parent / "chroma_db"
 COLLECTION_NAME = "hr_policies"
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 DEFAULT_TOP_K   = 5
 
 
@@ -48,7 +48,7 @@ _collection: chromadb.Collection | None = None
 def _get_model() -> SentenceTransformer:
     global _model
     if _model is None:
-        _model = SentenceTransformer(EMBEDDING_MODEL)
+        _model = SentenceTransformer(EMBEDDING_MODEL, revision=EMBEDDING_REVISION)
     return _model
 
 

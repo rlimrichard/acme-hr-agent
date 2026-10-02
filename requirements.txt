@@ -1,22 +1,22 @@
-chromadb>=0.5.0
-pysqlite3-binary>=0.5.4; sys_platform == "linux"
-sentence-transformers>=3.0.0
-torch>=2.0.0
+chromadb==1.5.9
+pysqlite3-binary==0.5.4.post2; sys_platform == "linux"
+sentence-transformers==6.1.0
+torch==2.8.0
 # document parsing
-beautifulsoup4>=4.12.0
-pypdf>=4.0.0
+beautifulsoup4==4.15.0
+pypdf==6.19.0
 # policy format conversion (scripts/convert_policies.py)
-markdown>=3.6
-reportlab>=4.0.0
+markdown==3.11
+reportlab==5.0.1
 # MCP tool server + web app
-mcp>=2.2.0,<3.0.0
-fastapi>=0.115.0
-uvicorn[standard]>=0.30.0
-httpx>=0.27.0
-python-multipart>=0.0.9  # required by FastAPI to parse Form(...) data (admin login)
-itsdangerous>=2.2.0      # signed session cookies for /admin auth
+mcp==2.2.0
+fastapi==0.142.2
+uvicorn[standard]==0.54.0
+httpx==0.28.1
+python-multipart==0.0.32  # required by FastAPI to parse Form(...) data (admin login)
+itsdangerous==2.2.0      # signed session cookies for /admin auth
 # Agent layer
-openai>=1.0.0
-python-dotenv>=1.0.0
+openai==3.22.1
+python-dotenv==1.2.4
 # Testing
-pytest>=8.0.0
+pytest==9.1.1

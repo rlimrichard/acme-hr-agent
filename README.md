@@ -72,13 +72,22 @@ source .venv/bin/activate      # macOS / Linux
 # .venv\Scripts\activate       # Windows
 ```
 
+Use Python 3.11 for the CI/deployment-equivalent environment.
+
 ### 3. Install dependencies
 
 ```bash
+# Linux CPU-only setup (the deployed/CI configuration):
+pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 ```
 
-> The first install downloads PyTorch and the `all-MiniLM-L6-v2` embedding model (~90 MB). Subsequent runs use the cached model.
+On Windows or macOS, install `requirements.txt` directly; the Linux CPU-wheel
+step above is not needed. Direct dependencies are pinned to the versions
+verified on the Python 3.11 server. Transitive wheels still depend on the
+platform; this is not a hash-locked, cross-platform environment. The first
+install downloads PyTorch and the `all-MiniLM-L6-v2` embedding model (~90 MB).
+Subsequent runs use the cached model.
 
 ### 4. Configure environment variables
 
@@ -128,7 +137,12 @@ Inserted <count> chunks into collection 'hr_policies'.
 Ingestion complete.
 ```
 
-This takes ~30 seconds on the first run (model load + encoding). Re-running is idempotent — it drops and recreates the collection.
+The embedding model is pinned to [Hugging Face revision
+`1110a243fdf4706b3f48f1d95db1a4f5529b4d41`](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/tree/1110a243fdf4706b3f48f1d95db1a4f5529b4d41). Input files are sorted,
+chunk size/overlap are fixed, and chunk IDs are derived from document ID,
+section/chunk position, and text. Thus, an unchanged corpus produces the same
+chunk texts and IDs across ingestion runs. Ingestion drops and recreates the
+collection; the first run takes ~30 seconds to load and encode the model.
 
 ---
 

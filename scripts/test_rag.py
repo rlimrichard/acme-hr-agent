@@ -11,9 +11,12 @@ from pathlib import Path
 # Make src importable from the project root
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Import ingestion first so its portable SQLite shim is installed on hosts
+# (including the OCI VM) whose system SQLite is too old for Chroma.
+from src.rag.ingest import POLICIES_DIR, load_and_chunk_policies
+from src.rag.retrieval import retrieve_chunks
 import chromadb
 from chromadb.config import Settings
-from src.rag.retrieval import retrieve_chunks
 
 CHROMA_DIR      = Path(__file__).parent.parent / "chroma_db"
 COLLECTION_NAME = "hr_policies"
@@ -160,8 +163,20 @@ def test_chunk_text(col) -> bool:
     return r1 and r2
 
 
+def test_stable_chunk_ids(col) -> bool:
+    print("\n=== 4. Stable Chunk IDs ===")
+    first = [chunk.chunk_id for chunk in load_and_chunk_policies(POLICIES_DIR)]
+    second = [chunk.chunk_id for chunk in load_and_chunk_policies(POLICIES_DIR)]
+    indexed = col.get(include=[])["ids"]
+    return all([
+        check("Repeated ingestion derives identical IDs", first == second),
+        check("IDs are unique", len(first) == len(set(first))),
+        check("Indexed IDs match source-derived IDs", set(indexed) == set(first)),
+    ])
+
+
 # ---------------------------------------------------------------------------
-# 4. Retrieval quality: targeted queries
+# 5. Retrieval quality: targeted queries
 # ---------------------------------------------------------------------------
 
 RETRIEVAL_TESTS = [
@@ -182,7 +197,7 @@ GOOD_DISTANCE_THRESHOLD = 0.45
 
 
 def test_retrieval():
-    print("\n=== 4. Retrieval Quality ===")
+    print("\n=== 5. Retrieval Quality ===")
     all_pass = True
     for query, expected_doc, label in RETRIEVAL_TESTS:
         chunks = retrieve_chunks(query, top_k=3)
@@ -208,7 +223,7 @@ def test_retrieval():
 
 
 # ---------------------------------------------------------------------------
-# 5. Multi-document retrieval
+# 6. Multi-document retrieval
 # ---------------------------------------------------------------------------
 
 MULTI_DOC_TESTS = [
@@ -226,7 +241,7 @@ MULTI_DOC_TESTS = [
 
 
 def test_multi_doc_retrieval() -> bool:
-    print("\n=== 5. Multi-Document Retrieval ===")
+    print("\n=== 6. Multi-Document Retrieval ===")
     results = []
     for query, expected_docs, label in MULTI_DOC_TESTS:
         chunks   = retrieve_chunks(query, top_k=6)
@@ -255,6 +270,7 @@ def main() -> int:
         test_coverage(col),
         test_metadata(col),
         test_chunk_text(col),
+        test_stable_chunk_ids(col),
         test_retrieval(),
         test_multi_doc_retrieval(),
     ]

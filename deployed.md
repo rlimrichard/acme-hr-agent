@@ -80,7 +80,7 @@ Every push to `main` that passes CI tests deploys automatically via GitHub Actio
 DEPLOY_SSH_KEY=/path/to/ssh_key ./scripts/deploy.sh
 ```
 
-The manual script follows the same checkout → sync → dependency install → regression → restart sequence as CI. A `git pull` alone does **not** update the service working directory. If policy files change, rebuild the persisted index explicitly from `/opt/acme-hr-agent` with `.venv311/bin/python -m src.rag.ingest` before restart.
+The manual script follows the same checkout → sync → dependency install → regression → restart sequence as CI. A `git pull` alone does **not** update the service working directory. If policy files, chunking rules, or the pinned embedding revision change, rebuild the persisted index explicitly from `/opt/acme-hr-agent` with `.venv311/bin/python -m src.rag.ingest` before restart. Back up `chroma_db/` first; ingestion replaces the collection.
 
 ## Latency (warm)
 
