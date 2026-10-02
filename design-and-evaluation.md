@@ -139,8 +139,42 @@ review of answer correctness.
 
 The checked-in `evaluation/results.csv` and older numbers in Git history
 predate authenticated evaluation and real `top_k` support. They are historical
-artifacts, not current performance claims. A fresh authenticated run is
-required before reporting current percentages or latency.
+artifacts, not current performance claims.
+
+### Live evaluation — October 2, 2026
+
+These runs used the same deployed application commit (`e7f3062`), question
+set, policy index, and `google/gemini-2.5-flash-lite` OpenRouter model at
+`https://hrapp.elcaro.io`. Each run authenticated the synthetic employee and
+sent `confirmed=false`, so it created no test tickets. The per-case answers
+and metrics are in `evaluation/results-2026-10-02-k3.csv`,
+`evaluation/results-2026-10-02-k5.csv`, and
+`evaluation/results-2026-10-02-k8.csv`.
+
+| Primary retrieval top-k | Composite pass | Tool F1 / citation accuracy / action safety | Lexical groundedness proxy | All-25 request p50 / p95 | Fixed-15 request p50 / p95 |
+|---|---:|---:|---:|---:|---:|
+| 3 | 25/25 | 100% / 100% / 100% | 51.6% | 1,828 / 2,281 ms | 1,868 / 2,936 ms |
+| 5 | 25/25 | 100% / 100% / 100% | 58.6% | 1,804 / 3,394 ms | 1,858 / 3,558 ms |
+| 8 | 25/25 | 100% / 100% / 100% | 63.8% | 1,962 / 2,572 ms | 1,968 / 3,486 ms |
+
+The fixed-15 sample IDs are listed by `evaluation/summarize_results.py`.
+Login is excluded from latency. A single sweep is not enough to attribute
+latency differences to top-k rather than provider variability. The higher
+lexical-overlap score at k=8 is **not** evidence of greater factual accuracy.
+All three runs also scored 100% for escalation, clarification, and workflow
+completion under the annotated rubric. In a spot check of the full k=5
+answers, the mouse used the company-provided equipment route, the $1,200 desk
+answer called out the $500 stipend shortfall, the combined desk/supplies
+answer separated the two allowances, and vague leave prompted for details.
+This is targeted human review, not an exhaustive policy-entailment study.
+
+The 75 corresponding audit entries recorded 57 LLM-selected routes, nine
+mixed-policy safeguards, six out-of-scope safeguards, and three direct-help
+routes. None recorded the provider-failure fallback as its route. Sixty
+answers received an LLM audit quality score; that score is diagnostic, not a
+calibrated probability of correctness. The model is a paid service; OpenRouter
+[lists its current token pricing](https://openrouter.ai/google/gemini-2.5-flash-lite/pricing),
+which should be checked before a larger evaluation run.
 
 ## Known limitations
 

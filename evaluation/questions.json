@@ -123,8 +123,8 @@
       "expected_escalated": false,
       "expected_tools": ["lookup_employee_profile", "search_policy_documents", "get_policy_section", "check_policy_compliance"],
       "expected_citation_docs": ["POL-EXP-001", "POL-RW-001"],
-      "gold_keywords": ["remote", "expense", "home office"],
-      "notes": "Requires both expense policy and remote work policy. Multi-doc retrieval test."
+      "gold_keywords": ["standing desk", "$500", "$30", "same purchase"],
+      "notes": "Requires both policies: the $500 ergonomics stipend is distinct from the $30/month consumables allowance, and the same desk cannot be claimed twice."
     },
     {
       "id": "Q010",
