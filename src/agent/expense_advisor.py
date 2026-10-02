@@ -148,6 +148,17 @@ def _synthesize(
                 # Standard peripherals use the company equipment route. A
                 # general ergonomics-stipend answer would mislead the employee.
                 return _template_answer(query, employee, compliance, section, chunks)
+            requested_amount = _extract_amount(query)
+            if "standing desk" in query.lower() and requested_amount:
+                amount_value = float(re.sub(r"[^\d.]", "", requested_amount))
+                amount_forms = {f"{amount_value:g}", f"{amount_value:,.0f}"}
+                if amount_value > 500 and not (
+                    any(amount_text in candidate for amount_text in amount_forms)
+                    and re.search(r"not cover|doesn.t cover|remaining|difference|exceed|out.of.pocket", candidate, re.I)
+                ):
+                    # Naming the stipend alone would imply a costly desk is
+                    # funded in full; preserve the explicit shortfall warning.
+                    return _template_answer(query, employee, compliance, section, chunks)
             if re.search(r"\b(?:expense|reimburse)\s+something\b", query.lower()):
                 # A vague expense has no actionable policy conclusion.  Some
                 # providers return a cut-off sentence or omit business purpose;

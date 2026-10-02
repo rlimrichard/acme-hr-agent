@@ -585,6 +585,42 @@ def test_personal_vacation_answer_keeps_employee_balance(monkeypatch) -> None:
     assert "balance" in response.answer.lower()
 
 
+def test_expensive_desk_answer_must_flag_stipend_shortfall(monkeypatch) -> None:
+    import openai
+
+    class FakeCompletion:
+        def create(self, **kwargs):
+            return type("Reply", (), {"choices": [type("Choice", (), {
+                "message": type("Message", (), {
+                    "content": "Your standing desk qualifies for the $500 stipend [POL-RW-001 § 5.2 Ergonomics]."
+                })()
+            })()]})()
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.chat = type("Chat", (), {"completions": FakeCompletion()})()
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-only-key")
+    monkeypatch.setattr(openai, "OpenAI", FakeClient)
+    chunks = [{"doc_id": "POL-RW-001", "section": "5.2 Ergonomics",
+               "text": "One-time ergonomics stipend of $500 for qualifying remote employees."}]
+    answer = expense_advisor._synthesize(
+        "Can I expense a $1,200 standing desk?", {"remote_status": "remote"}, chunks, {}, {}
+    )
+    assert "$1,200" in answer
+    assert "does not cover the full" in answer
+
+
+def test_vague_leave_answer_stays_concise_and_asks_for_details(monkeypatch) -> None:
+    _force_deterministic_routing(monkeypatch)
+    monkeypatch.setattr(orchestrator, "synthesize_policy_answer", lambda **kwargs:
+                        "PTO, sick leave, parental leave, and unpaid leave all have different rules. " * 12)
+    response = _agent().answer("I need some help with leave.", "EMP-001")
+    assert len(response.answer) < 450
+    assert "?" in response.answer
+    assert "type of leave" in response.answer.lower()
+
+
 def test_expense_answer_is_non_empty() -> None:
     response = _agent().answer("Can I expense a $300 webcam for my home office?", "EMP-001")
     assert len(response.answer) > 20  # LLM answer or template fallback — both are non-trivial

@@ -457,6 +457,12 @@ class HRAgent:
             # The employee's actual balance is material to a personal PTO
             # answer; a generic policy summary is not sufficient.
             response.answer = deterministic_answer + email_block
+        if "help with leave" in lowered and (
+            "?" not in response.answer or len(response.answer) > 450
+        ):
+            # An underspecified request needs a focused question, not a broad
+            # inventory of leave rules that may not apply to the employee.
+            response.answer = deterministic_answer + email_block
         if parental_accrual:
             response.escalated = True
             response.escalation_message = "People Operations must confirm PTO accrual during parental leave."
